@@ -35,7 +35,7 @@ A token screener for tokens launched on [ape.store](https://ape.store) on **Robi
 ## Product
 
 - Phase 1 (done): live screener list — search by name/symbol, sort by market cap/volume/name/newest, 20s auto-refresh, EN/ID language switcher, mobile-responsive dark "trading terminal" UI.
-- Phase 2 (planned): token detail page with polling auto-refresh.
+- Phase 2 (done): token detail page (`/token/[chain]/[address]`) with 20s polling auto-refresh, market cap/liquidity/king-progress/ape-progress stats, and a recent-trades table (buy/sell, wallet, amount, time, tx link).
 - Phase 3 (planned): dev-wallet tracking — warn when a token's creator has launched other tokens (`wallet_launches` table).
 - Phase 4 (planned): wallet funding trace via Alchemy RPC (`wallet_transfers` table).
 - Phase 5 (planned): bundle-wallet heuristic detection, shown as an indication not a fact (`bundle_flags` table).
@@ -48,6 +48,7 @@ A token screener for tokens launched on [ape.store](https://ape.store) on **Robi
 
 ## Gotchas
 
+- ape.store detail endpoint's `kingProgress`/`apeProgress` are already 0-100 scale numbers, not 0-1 fractions — don't multiply by 100 again.
 - **This app cannot be previewed inside Replit's UI.** This workspace's preview pane/deploy only supports registered "artifact" types (`react-vite`, `expo`, `slides`, `video-js`, `openscad`); Next.js isn't one of them. The dev server runs fine as a plain `configureWorkflow` process on port 5000, but hitting the public Replit dev domain returns "no previewable artifacts" (confirmed via test). Verify changes with `curl http://localhost:5000` from the shell, not with the Screenshot tool.
 - ape.store's `volumeStat` list field is an object (`{ mCap, transactions, volume, volumeUSD }`), not a plain number — use `.volumeUSD`.
 - Supabase schema (`supabase/schema.sql`) must be run manually in the Supabase SQL editor; there's no service-role/REST path to execute DDL from this repo.
