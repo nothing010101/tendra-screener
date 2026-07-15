@@ -207,7 +207,22 @@ export default function TokenDetailPage() {
           </span>
           <span>
             {t.columns.holders}:{" "}
-            {token.holderCount != null ? token.holderCount.toLocaleString() : t.holdersUnavailable}
+            {token.holderCount != null ? (
+              token.holderCount >= 1000 ? (
+                <a
+                  href={`https://robinhoodchain.blockscout.com/token/${token.address}?tab=holders`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-acid hover:underline"
+                >
+                  &gt;1000
+                </a>
+              ) : (
+                token.holderCount.toLocaleString()
+              )
+            ) : (
+              t.holdersUnavailable
+            )}
             {token.holderCount != null && token.holderUpdatedAt && (
               <span className="ml-1 text-muted/70">
                 ({t.holdersAsOf.replace("{t}", formatRelativeTime(token.holderUpdatedAt))})

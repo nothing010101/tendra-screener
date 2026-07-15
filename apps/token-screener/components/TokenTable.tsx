@@ -110,7 +110,18 @@ export function TokenTable({
                         : undefined
                     }
                   >
-                    {item.holderCount.toLocaleString()}
+                    {item.holderCount >= 1000 ? (
+                      <a
+                        href={`https://robinhoodchain.blockscout.com/token/${item.address}?tab=holders`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-acid hover:underline"
+                      >
+                        &gt;1000
+                      </a>
+                    ) : (
+                      item.holderCount.toLocaleString()
+                    )}
                     {item.holderUpdatedAt && (
                       <span className="ml-1 text-[10px] text-muted/70">
                         ({t.holdersAsOf.replace("{t}", formatRelativeTime(item.holderUpdatedAt))})

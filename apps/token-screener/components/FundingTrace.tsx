@@ -33,7 +33,7 @@ export function FundingTrace({
           <span>
             {t.funding.fundedBy}:{" "}
             <a
-              href={`https://explorer.robinhood.chain/address/${trace.from_address}`}
+              href={`https://robinhoodchain.blockscout.com/address/${trace.from_address}`}
               target="_blank"
               rel="noreferrer"
               className="text-acid hover:underline"
@@ -48,7 +48,7 @@ export function FundingTrace({
           )}
           {trace.timestamp && <span className="text-muted">{formatRelativeTime(trace.timestamp)}</span>}
           <a
-            href={`https://explorer.robinhood.chain/tx/${trace.tx_hash}`}
+            href={`https://robinhoodchain.blockscout.com/tx/${trace.tx_hash}`}
             target="_blank"
             rel="noreferrer"
             className="text-muted hover:text-acid"

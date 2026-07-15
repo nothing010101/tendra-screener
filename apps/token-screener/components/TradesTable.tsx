@@ -58,7 +58,7 @@ export function TradesTable({ trades }: { trades: ApeStoreTrade[] }) {
                 <td className="px-4 py-3 text-right font-mono tabular text-muted">{timeAgo(trade.timeStamp)}</td>
                 <td className="px-4 py-3 text-right font-mono text-xs text-muted">
                   <a
-                    href={`https://explorer.robinhood.chain/tx/${trade.transactionHash}`}
+                    href={`https://robinhoodchain.blockscout.com/tx/${trade.transactionHash}`}
                     target="_blank"
                     rel="noreferrer"
                     className="hover:text-acid"
