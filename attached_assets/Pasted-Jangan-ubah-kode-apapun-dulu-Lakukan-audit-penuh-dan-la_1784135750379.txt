@@ -1,0 +1,21 @@
+Jangan ubah kode apapun dulu. Lakukan audit penuh dan laporkan hasilnya per poin, dengan bukti konkret (angka/output nyata, bukan asumsi):
+
+GIT & DEPLOY
+1. git status, git log --oneline -10, git remote -v — pastikan tidak ada uncommitted changes dan semua sudah ke-push ke GitHub.
+2. Buka Vercel dashboard: konfirmasi kedua project (token-screener dan coming-soon) statusnya READY dengan deployment terbaru sesuai commit terakhir di GitHub (bandingkan commit hash-nya, jangan cuma lihat status hijau).
+3. Buka Railway dashboard: konfirmasi service worker statusnya masih Running (bukan Failed/Crashed), dan cek log 10 menit terakhir untuk pastikan masih polling normal.
+
+DATA KELENGKAPAN
+4. Hitung: berapa total token yang ada di ape.store untuk chain 4663 (dari API mereka langsung), vs berapa baris yang ada di tabel tokens Supabase sekarang. Kalau beda, jelaskan kenapa.
+5. Dari total token itu, berapa persen yang holder_count-nya sudah terisi (bukan N/A)? Kalau proses batch holder belum selesai semua, berapa lama estimasi sisa waktunya?
+6. Cek 5 token acak: bandingkan price, marketCap, volume yang tampil di UI vs response mentah API ape.store untuk token yang sama — pastikan angkanya match, bukan cuma "kelihatan wajar".
+
+UI & BRANDING
+7. Konfirmasi nama "ApeScreener" konsisten di semua tempat (title, header, footer, metadata) — screenshot atau kutip bagian yang masih beda kalau ada.
+8. Konfirmasi warna sudah pakai palet yang diminta (#0B0D08, #15130C, #FFC72C, #FF9F1C, #F3EED9, #A8A290, #2A2717) — cek file CSS/config, bukan cuma "sudah saya ganti".
+9. Landing page (coming-soon): konfirmasi ini benar-benar pakai konten dari repo "landingpage" (bukan buatan sendiri), dan tombol "Enter App" mengarah ke URL token-screener yang benar dan berfungsi saat diklik.
+
+RINGKASAN AKHIR
+10. Buat daftar: apa saja yang statusnya "selesai & terverifikasi" vs "masih ada masalah/belum dikerjakan" — jangan campur keduanya jadi satu kalimat optimis.
+
+Laporkan semua ini apa adanya, termasuk kalau ada yang jelek/gagal. Jangan mulai perbaikan apapun sebelum saya baca laporan lengkapnya.
