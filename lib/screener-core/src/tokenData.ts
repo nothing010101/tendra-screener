@@ -73,7 +73,6 @@ export async function getLiveTokens(
     "chain":   `eq.${chain}`,
     "is_dead": "eq.false",
     "order":   `${col}.${direction}`,
-    "limit":   "10000",
     "select":  "*",
   });
 
@@ -81,30 +80,49 @@ export async function getLiveTokens(
     params.set("or", `(name.ilike.*${search.trim()}*,symbol.ilike.*${search.trim()}*)`);
   }
 
-  const endpoint = `${url.replace(/\/$/, "")}/rest/v1/tokens?${params.toString()}`;
+  const base = `${url.replace(/\/$/, "")}/rest/v1/tokens?${params.toString()}`;
+  const PAGE = 1000; // Supabase free-tier max-rows cap per request
 
-  const res = await fetch(endpoint, {
-    headers: {
-      apikey:          key,
-      Authorization:   `Bearer ${key}`,
-      "Content-Type":  "application/json",
-      // Supabase REST caps rows at the project max (often 1 000 on free tier)
-      // even when `limit` is larger. Range header overrides that cap.
-      "Range":         "0-9999",
-      "Range-Unit":    "items",
-    },
-    // Never cache — data changes every 30 s from the worker.
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    console.error(`[tokenData] getLiveTokens HTTP ${res.status}:`, body);
-    return [];
+  // Fetch a single range page from Supabase REST.
+  async function fetchRange(from: number): Promise<TokenRow[]> {
+    const res = await fetch(base, {
+      headers: {
+        apikey:         key,
+        Authorization:  `Bearer ${key}`,
+        "Content-Type": "application/json",
+        // PostgREST Range header for offset pagination.
+        "Range":        `${from}-${from + PAGE - 1}`,
+        "Range-Unit":   "items",
+      },
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      // 416 = Range Not Satisfiable → offset is beyond end of result set.
+      if (res.status === 416) return [];
+      console.error(`[tokenData] getLiveTokens HTTP ${res.status} (range ${from}):`, body);
+      return [];
+    }
+    return (await res.json() as TokenRow[]) ?? [];
   }
 
-  const data = await res.json() as TokenRow[];
-  return data ?? [];
+  // First page — always fetched.
+  const first = await fetchRange(0);
+  if (first.length < PAGE) return first; // fits in one page
+
+  // Still more rows: fan out to fetch remaining pages in parallel.
+  // We don't know the total upfront, so fetch up to a generous ceiling
+  // (e.g. 10 000 tokens) and stop when a page comes back short.
+  const MAX_PAGES = 10;
+  const offsets = Array.from({ length: MAX_PAGES - 1 }, (_, i) => (i + 1) * PAGE);
+  const rest = await Promise.all(offsets.map(fetchRange));
+
+  const all: TokenRow[] = [...first];
+  for (const page of rest) {
+    all.push(...page);
+    if (page.length < PAGE) break; // last page
+  }
+  return all;
 }
 
 // ─── Write ───────────────────────────────────────────────────────────────────
