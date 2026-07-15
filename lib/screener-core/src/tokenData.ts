@@ -132,8 +132,17 @@ export async function upsertTokenSnapshot(
   chain: number,
   items: ApeStoreTokenListItem[],
 ): Promise<void> {
+  // Diagnostic: confirm function is entered and supabase client state
+  console.log(`[tokenData] upsertTokenSnapshot() called — items=${items.length}, chain=${chain}`);
   const supabase = getSupabaseAdmin();
-  if (!supabase || items.length === 0) return;
+  if (!supabase) {
+    console.error("[tokenData] upsertTokenSnapshot() — getSupabaseAdmin() returned null, skipping upsert");
+    return;
+  }
+  if (items.length === 0) {
+    console.warn("[tokenData] upsertTokenSnapshot() — items array is empty, skipping upsert");
+    return;
+  }
 
   const now = new Date().toISOString();
 
@@ -166,6 +175,7 @@ export async function upsertTokenSnapshot(
 
   // Batch upsert in chunks to stay well under Supabase's 2 MB request limit.
   const CHUNK = 500;
+  let totalUpserted = 0;
   for (let i = 0; i < rows.length; i += CHUNK) {
     const chunk = rows.slice(i, i + CHUNK);
     const { error } = await supabase
@@ -173,6 +183,10 @@ export async function upsertTokenSnapshot(
       .upsert(chunk, { onConflict: "chain,address" });
     if (error) {
       console.error(`[tokenData] upsert chunk ${i}–${i + chunk.length} failed:`, error.message);
+    } else {
+      totalUpserted += chunk.length;
+      console.log(`[tokenData] upsert chunk ${i}–${i + chunk.length} OK`);
     }
   }
+  console.log(`[tokenData] upsertTokenSnapshot() done — ${totalUpserted}/${rows.length} rows upserted to chain ${chain}`);
 }

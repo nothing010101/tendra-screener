@@ -12,6 +12,15 @@ export function getSupabaseAdmin(): SupabaseClient | null {
 
   const url = process.env.SUPABASE_URL_PROJECT;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  // Diagnostic: log exact env var presence on first call so we can distinguish
+  // "env var missing" from "createClient failed" in Railway logs.
+  console.log(
+    "[supabase] getSupabaseAdmin() first call —",
+    "SUPABASE_URL_PROJECT:", url ? `set (${url.slice(0, 30)}…)` : "MISSING",
+    "| SUPABASE_SERVICE_ROLE_KEY:", key ? `set (length=${key.length})` : "MISSING",
+  );
+
   if (!url || !key) {
     console.warn("[supabase] SUPABASE_URL_PROJECT / SUPABASE_SERVICE_ROLE_KEY not set — dev-wallet tracking disabled");
     return null;
@@ -20,5 +29,6 @@ export function getSupabaseAdmin(): SupabaseClient | null {
   cached = createClient(url, key, {
     auth: { persistSession: false },
   });
+  console.log("[supabase] createClient() succeeded — client cached");
   return cached;
 }
