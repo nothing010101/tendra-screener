@@ -29,6 +29,10 @@ A token screener for tokens launched on [ape.store](https://ape.store) on **Robi
 - `apps/token-screener/app/api/wallet/[address]/launches/route.ts` — all recorded launches for one creator
 - `apps/token-screener/app/api/wallet/launch-counts/route.ts` — batched launch counts for a set of creators
 - `apps/token-screener/components/DevWalletWarning.tsx` — detail-page warning banner listing a creator's other tokens
+- `apps/token-screener/lib/alchemy.ts` — server-only Alchemy JSON-RPC client (`alchemy_getAssetTransfers`) scoped to Robinhood Chain
+- `apps/token-screener/lib/walletTransfers.ts` — Phase 4 funding trace: earliest funder lookup (cached in `wallet_transfers`) + funder fan-out count
+- `apps/token-screener/app/api/wallet/[address]/funding/route.ts` — funding trace + funder fan-out for one wallet
+- `apps/token-screener/components/FundingTrace.tsx` — detail-page section showing who funded the creator wallet and how many other dev wallets that funder has funded
 
 ## Architecture decisions
 
@@ -42,7 +46,7 @@ A token screener for tokens launched on [ape.store](https://ape.store) on **Robi
 - Phase 1 (done): live screener list — search by name/symbol, sort by market cap/volume/name/newest, 20s auto-refresh, EN/ID language switcher, mobile-responsive dark "trading terminal" UI.
 - Phase 2 (done): token detail page (`/token/[chain]/[address]`) with 20s polling auto-refresh, market cap/liquidity/king-progress/ape-progress stats, and a recent-trades table (buy/sell, wallet, amount, time, tx link).
 - Phase 3 (done): dev-wallet tracking — every ape.store fetch upserts into `wallet_launches`; the screener table flags "serial dev" creators (⚠ badge) via a batched count lookup, and the token detail page shows a warning banner listing the creator's other tokens on Robinhood Chain.
-- Phase 4 (planned): wallet funding trace via Alchemy RPC (`wallet_transfers` table).
+- Phase 4 (done): wallet funding trace — on a token's detail page, traces the creator wallet's earliest incoming transfer via Alchemy RPC (`alchemy_getAssetTransfers`), caches it in `wallet_transfers`, and warns if that same funder has funded multiple dev wallets on this chain.
 - Phase 5 (planned): bundle-wallet heuristic detection, shown as an indication not a fact (`bundle_flags` table).
 
 ## User preferences
@@ -58,6 +62,7 @@ A token screener for tokens launched on [ape.store](https://ape.store) on **Robi
 - ape.store's `volumeStat` list field is an object (`{ mCap, transactions, volume, volumeUSD }`), not a plain number — use `.volumeUSD`.
 - Supabase schema (`supabase/schema.sql`) must be run manually in the Supabase SQL editor; there's no service-role/REST path to execute DDL from this repo.
 - `wallet_launches` is populated passively (best-effort upsert on every ape.store list/detail fetch), not backfilled — the "serial dev" count is a lower bound based on tokens we've actually observed, not full on-chain history.
+- Alchemy's enhanced `alchemy_getAssetTransfers` API works against the `ALCHEMY_RPC` endpoint for Robinhood Chain (chain id `4663` = `0x1237`) — confirmed via direct RPC call. Funding trace uses `order: "asc"` + small `maxCount` to get earliest incoming transfer cheaply instead of paging full history.
 
 ## Pointers
 

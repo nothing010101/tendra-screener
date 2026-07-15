@@ -58,6 +58,15 @@ export interface Dictionary {
     deadBadge: string;
     viewToken: string;
   };
+  funding: {
+    title: string;
+    fundedBy: string;
+    amount: string;
+    txn: string;
+    none: string;
+    fanOut: string;
+    loading: string;
+  };
 }
 
 export const dictionaries: Record<Locale, Dictionary> = {
@@ -119,6 +128,15 @@ export const dictionaries: Record<Locale, Dictionary> = {
       deadBadge: "Dead",
       viewToken: "View",
     },
+    funding: {
+      title: "Funding trace",
+      fundedBy: "Funded by",
+      amount: "Amount",
+      txn: "Tx",
+      none: "No incoming funding found for this wallet yet.",
+      fanOut: "This funder has funded {count} dev wallet(s) on Robinhood Chain.",
+      loading: "Tracing funding source\u2026",
+    },
   },
   zh: {
     brand: "Robinhood Chain 筛选器",
@@ -178,6 +196,15 @@ export const dictionaries: Record<Locale, Dictionary> = {
       deadBadge: "已死亡",
       viewToken: "查看",
     },
+    funding: {
+      title: "资金追踪",
+      fundedBy: "资金来源",
+      amount: "金额",
+      txn: "交易",
+      none: "暂未发现该钱包的资金来源。",
+      fanOut: "该资金来源钱包已为 Robinhood Chain 上 {count} 个开发者钱包提供资金。",
+      loading: "正在追踪资金来源\u2026",
+    },
   },
   de: {
     brand: "Robinhood Chain Screener",
@@ -236,6 +263,15 @@ export const dictionaries: Record<Locale, Dictionary> = {
       otherLaunchesTitle: "Weitere Token dieses Erstellers",
       deadBadge: "Tot",
       viewToken: "Ansehen",
+    },
+    funding: {
+      title: "Finanzierungsnachverfolgung",
+      fundedBy: "Finanziert von",
+      amount: "Betrag",
+      txn: "Tx",
+      none: "Für dieses Wallet wurde noch keine eingehende Finanzierung gefunden.",
+      fanOut: "Dieser Geldgeber hat {count} Dev-Wallet(s) auf der Robinhood Chain finanziert.",
+      loading: "Finanzierungsquelle wird nachverfolgt\u2026",
     },
   },
 };

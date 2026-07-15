@@ -8,8 +8,10 @@ import { formatUsd, formatRelativeTime, shortenAddress } from "@/lib/format";
 import { resolveIpfsUri } from "@/lib/ipfs";
 import { TradesTable } from "@/components/TradesTable";
 import { DevWalletWarning } from "@/components/DevWalletWarning";
+import { FundingTrace } from "@/components/FundingTrace";
 import type { ApeStoreTokenDetailResponse, ApeStoreTrade } from "@/lib/apestore";
 import type { WalletLaunch } from "@/lib/walletLaunches";
+import type { FundingTrace as FundingTraceData } from "@/lib/walletTransfers";
 
 const POLL_MS = 20_000;
 
@@ -19,6 +21,9 @@ export default function TokenDetailPage() {
   const [detail, setDetail] = useState<ApeStoreTokenDetailResponse | null>(null);
   const [trades, setTrades] = useState<ApeStoreTrade[]>([]);
   const [otherLaunches, setOtherLaunches] = useState<WalletLaunch[]>([]);
+  const [fundingTrace, setFundingTrace] = useState<FundingTraceData | null>(null);
+  const [funderFanOut, setFunderFanOut] = useState(0);
+  const [fundingStatus, setFundingStatus] = useState<"loading" | "ready" | "error">("loading");
   const [status, setStatus] = useState<"loading" | "ready" | "error" | "not_found">("loading");
   const [tradesStatus, setTradesStatus] = useState<"loading" | "ready" | "error">("loading");
 
@@ -97,6 +102,34 @@ export default function TokenDetailPage() {
       cancelled = true;
     };
   }, [detail?.token.creator, params.address]);
+
+  // Phase 4: wallet funding trace — who first funded this creator wallet, via
+  // Alchemy RPC. Fetched once per creator, not on the 20s poll (historical
+  // data, and Alchemy calls aren't free).
+  useEffect(() => {
+    let cancelled = false;
+    const creator = detail?.token.creator;
+    if (!creator) return;
+
+    setFundingStatus("loading");
+    fetch(`/api/wallet/${creator}/funding`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data.error) throw new Error(data.error);
+        setFundingTrace(data.trace ?? null);
+        setFunderFanOut(data.funderFanOut ?? 0);
+        setFundingStatus("ready");
+      })
+      .catch((err) => {
+        console.error("[funding-trace]", err);
+        if (!cancelled) setFundingStatus("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [detail?.token.creator]);
 
   if (status === "loading") {
     return (
@@ -180,6 +213,8 @@ export default function TokenDetailPage() {
           </span>
         </div>
         <p className="mt-1 font-mono text-[11px] text-muted/70">{t.detail.holdersNote}</p>
+
+        <FundingTrace status={fundingStatus} trace={fundingTrace} funderFanOut={funderFanOut} />
 
         <DevWalletWarning chain={token.chain} creator={token.creator} otherLaunches={otherLaunches} />
 
