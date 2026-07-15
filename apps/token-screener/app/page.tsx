@@ -7,7 +7,13 @@ import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { ApeStoreTokenListItem } from "@/lib/apestore";
 
 const PAGE_SIZE = 24;
-const MAX_PAGES = 8; // pulls up to ~200 live tokens for a responsive client-side screener
+// ape.store's `pageCount` field is not a reliable page count (it returns a
+// constant regardless of page/filter) — see lib/screener-core/apestore.ts for
+// details. The only reliable end-of-list signal is a page coming back with
+// fewer than PAGE_SIZE items, so we page forward in batches until we see one,
+// instead of trusting pageCount or a small hardcoded page cap.
+const PAGE_FETCH_CONCURRENCY = 5;
+const MAX_PAGE_SAFETY_CAP = 1000;
 
 export default function HomePage() {
   const { t } = useLanguage();
@@ -39,15 +45,28 @@ export default function HomePage() {
         if (first.error) throw new Error(first.error);
 
         let all: ApeStoreTokenListItem[] = first.items ?? [];
-        const totalPages = Math.min(MAX_PAGES, Math.max(1, Math.ceil((first.pageCount ?? 0) / PAGE_SIZE)));
 
-        const rest = await Promise.all(
-          Array.from({ length: totalPages - 1 }, (_, i) =>
-            fetch(`/api/tokens?page=${i + 2}`).then((r) => r.json()),
-          ),
-        );
-        for (const page of rest) {
-          if (page?.items) all = all.concat(page.items);
+        if (all.length >= PAGE_SIZE) {
+          let nextPage = 2;
+          let reachedEnd = false;
+
+          while (!reachedEnd && nextPage <= MAX_PAGE_SAFETY_CAP) {
+            const batchPages = Array.from({ length: PAGE_FETCH_CONCURRENCY }, (_, i) => nextPage + i);
+            const batch = await Promise.all(
+              batchPages.map((page) => fetch(`/api/tokens?page=${page}`).then((r) => r.json())),
+            );
+
+            for (const page of batch) {
+              const pageItems: ApeStoreTokenListItem[] = page?.items ?? [];
+              all = all.concat(pageItems);
+              if (pageItems.length < PAGE_SIZE) {
+                reachedEnd = true;
+                break;
+              }
+            }
+
+            nextPage += PAGE_FETCH_CONCURRENCY;
+          }
         }
 
         if (!cancelled) {

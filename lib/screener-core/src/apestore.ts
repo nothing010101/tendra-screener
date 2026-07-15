@@ -140,21 +140,49 @@ export function fetchTokenTrades(chain: number, address: string): Promise<ApeSto
 
 // Fetches every "live" page from ape.store for a chain in one shot. Used by
 // the worker (which has no browser tab paging through the list) and mirrors
-// the same MAX_PAGES the Next.js screener list applies client-side, so both
-// see the same window of tokens.
-export async function fetchAllLiveTokens(chain = ROBINHOOD_CHAIN_ID, maxPages = 8): Promise<ApeStoreTokenListItem[]> {
+// the same stop condition the Next.js screener list applies client-side, so
+// both see the same full token set.
+//
+// IMPORTANT: ape.store's `pageCount` field on this endpoint is NOT the number
+// of pages (or even related to the live-filtered result set) — it was
+// observed to return a constant 48000 regardless of page number or filter,
+// while the real "live" list for Robinhood Chain ends after ~122 pages. Using
+// `pageCount` to compute how many pages to fetch silently truncated the
+// result set (previously capped at a hardcoded 8 pages / ~192 tokens against
+// an actual ~2900+ live tokens). Instead, page forward in fixed-size batches
+// until a page comes back with fewer than `pageSize` items (ape.store's
+// signal for "last page"), which is the only reliable end-of-list signal
+// this endpoint gives.
+const PAGE_FETCH_CONCURRENCY = 5;
+const MAX_PAGE_SAFETY_CAP = 1000; // hard stop so a misbehaving API can't loop forever
+
+export async function fetchAllLiveTokens(chain = ROBINHOOD_CHAIN_ID): Promise<ApeStoreTokenListItem[]> {
   const first = await fetchTokenList({ page: 1, chain });
   const pageSize = first.items.length || 24;
-  const totalPages = Math.min(maxPages, Math.max(1, Math.ceil((first.pageCount ?? 0) / pageSize)));
 
   let all = first.items;
-  if (totalPages > 1) {
-    const rest = await Promise.all(
-      Array.from({ length: totalPages - 1 }, (_, i) => fetchTokenList({ page: i + 2, chain })),
-    );
-    for (const page of rest) {
-      all = all.concat(page.items);
-    }
+  if (first.items.length < pageSize) {
+    // First page was already short/empty — nothing more to fetch.
+    return all;
   }
+
+  let nextPage = 2;
+  let reachedEnd = false;
+
+  while (!reachedEnd && nextPage <= MAX_PAGE_SAFETY_CAP) {
+    const batchPages = Array.from({ length: PAGE_FETCH_CONCURRENCY }, (_, i) => nextPage + i);
+    const batch = await Promise.all(batchPages.map((page) => fetchTokenList({ page, chain })));
+
+    for (const page of batch) {
+      all = all.concat(page.items);
+      if (page.items.length < pageSize) {
+        reachedEnd = true;
+        break;
+      }
+    }
+
+    nextPage += PAGE_FETCH_CONCURRENCY;
+  }
+
   return all;
 }
