@@ -57,6 +57,7 @@ export async function getLiveTokens(
   order: SortOrder = "desc",
   search = "",
   limit?: number,          // when set, fetch exactly this many rows (one request, no pagination)
+  minMarketCap?: number,   // when set, filter market_cap >= this value
 ): Promise<TokenRow[]> {
   const url  = process.env.SUPABASE_URL_PROJECT ?? "";
   const key  = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -77,6 +78,7 @@ export async function getLiveTokens(
     "select":  "*",
   });
 
+  if (minMarketCap != null) params.set("market_cap", `gte.${minMarketCap}`);
   if (search.trim()) {
     params.set("or", `(name.ilike.*${search.trim()}*,symbol.ilike.*${search.trim()}*)`);
   }

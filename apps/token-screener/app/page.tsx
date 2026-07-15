@@ -1,20 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Toolbar, SortKey, SortOrder } from "@/components/Toolbar";
 import { TokenTable } from "@/components/TokenTable";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { ApeStoreTokenListItem } from "@/lib/apestore";
 
-// Architecture: fetch the 100 newest live tokens from Supabase on mount and
-// every 30 s. The API always returns the 100 most-recently-launched tokens
-// (sorted by deploy_date DESC) so the screener stays focused on new activity.
-// Sorting / filtering is done client-side for instant (<5ms) tab switching.
+// Two modes:
+//   new → 50 newest tokens by deploy_date (rolling feed of new launches)
+//   mc  → tokens with market_cap >= $5 K, sorted by market_cap DESC
+// Tokens that drop off "new" reappear automatically in "mc" once MC ≥ $5 K.
 
-const STALE_MS = 30_000; // re-fetch when data is older than this
+type Mode = "new" | "mc";
+const STALE_MS = 30_000;
 
 export default function HomePage() {
   const { t } = useLanguage();
+  const [mode, setMode]                 = useState<Mode>("new");
   const [items, setItems]               = useState<ApeStoreTokenListItem[]>([]);
   const [status, setStatus]             = useState<"loading" | "ready" | "error">("loading");
   const [search, setSearch]             = useState("");
@@ -31,61 +33,51 @@ export default function HomePage() {
     return () => clearInterval(tick);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(async (currentMode: Mode, force = false) => {
+    if (!force && lastUpdated && Date.now() - lastUpdated < STALE_MS - 1_000) return;
+    try {
+      const res = await fetch(`/api/tokens?mode=${currentMode}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
 
-    async function load() {
-      // Skip if data is fresh — the setInterval below will call load() every
-      // STALE_MS; guard so back-to-back triggers don't fire duplicate fetches.
-      if (lastUpdated && Date.now() - lastUpdated < STALE_MS - 1_000) return;
+      const all: ApeStoreTokenListItem[] = data.items ?? [];
+      setItems(all);
+      setStatus("ready");
+      setLastUpdated(Date.now());
 
-      try {
-        // No sort param — data arrives in DB-default order (marketCap DESC,
-        // which is the most common view). All other sorts are done in memory.
-        const res = await fetch("/api/tokens");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-
-        const all: ApeStoreTokenListItem[] = data.items ?? [];
-        if (!cancelled) {
-          setItems(all);
-          setStatus("ready");
-          setLastUpdated(Date.now());
-        }
-
-        // Serial-dev: fetch creator launch counts in background after data lands.
-        const creators = Array.from(new Set(all.map((t) => t.creator)));
-        if (creators.length > 0 && !cancelled) {
-          fetch("/api/wallet/launch-counts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ creators }),
-          })
-            .then((r) => r.json())
-            .then((counts) => { if (!cancelled) setLaunchCounts(counts ?? {}); })
-            .catch((err) => console.error("[launch-counts]", err));
-        }
-      } catch (err) {
-        console.error(err);
-        if (!cancelled) setStatus("error");
+      // Serial-dev launch counts in background.
+      const creators = Array.from(new Set(all.map((t) => t.creator)));
+      if (creators.length > 0) {
+        fetch("/api/wallet/launch-counts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ creators }),
+        })
+          .then((r) => r.json())
+          .then((counts) => setLaunchCounts(counts ?? {}))
+          .catch(() => {});
       }
+    } catch (err) {
+      console.error(err);
+      setStatus("error");
     }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    load();
-    const interval = setInterval(load, STALE_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Re-fetch immediately when mode changes, then poll every 30 s.
+  useEffect(() => {
+    setStatus("loading");
+    setItems([]);
+    setLastUpdated(null);
+    load(mode, true);
+    const interval = setInterval(() => load(mode), STALE_MS);
+    return () => clearInterval(interval);
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updatedSecondsAgo =
     lastUpdated != null ? Math.max(0, Math.floor((Date.now() - lastUpdated) / 1000)) : null;
   void nowTick;
 
-  // All filtering and sorting happens here in JS — zero network cost.
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = q
@@ -96,7 +88,8 @@ export default function HomePage() {
       list = list.filter((t) => (launchCounts[t.creator.toLowerCase()] ?? 0) > 1);
     }
 
-    // Client-side sort — runs in <5ms for 3 000 tokens.
+    // In "new" mode items already arrive newest-first; only re-sort if user
+    // explicitly changes the sort key away from the default.
     list = [...list].sort((a, b) => {
       let cmp = 0;
       switch (sortKey) {
@@ -137,6 +130,30 @@ export default function HomePage() {
             </div>
           )}
         </header>
+
+        {/* Mode tabs */}
+        <div className="mb-5 flex gap-1 rounded-lg border border-line bg-panel p-1 w-fit">
+          <button
+            onClick={() => { setMode("new"); setSortKey("newest"); setSortOrder("desc"); }}
+            className={`rounded px-4 py-1.5 font-mono text-xs transition-colors ${
+              mode === "new"
+                ? "bg-acid text-canvas font-semibold"
+                : "text-muted hover:text-ink"
+            }`}
+          >
+            🆕 New (50)
+          </button>
+          <button
+            onClick={() => { setMode("mc"); setSortKey("marketCap"); setSortOrder("desc"); }}
+            className={`rounded px-4 py-1.5 font-mono text-xs transition-colors ${
+              mode === "mc"
+                ? "bg-acid text-canvas font-semibold"
+                : "text-muted hover:text-ink"
+            }`}
+          >
+            📈 Market Cap ≥ $5K
+          </button>
+        </div>
 
         <Toolbar
           search={search}

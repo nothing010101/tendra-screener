@@ -1,0 +1,19 @@
+2026-07-15T23:44:45.001767425Z [inf]  Starting Container
+2026-07-15T23:44:45.002239190Z [inf]  
+2026-07-15T23:44:45.002243080Z [inf]  > @workspace/worker@0.1.0 start /app/apps/worker
+2026-07-15T23:44:45.002246500Z [inf]  > tsx src/index.ts
+2026-07-15T23:44:45.002249950Z [inf]  
+2026-07-15T23:44:45.002252690Z [inf]  [worker] starting — polling ape.store every 30000ms
+2026-07-15T23:44:45.002255450Z [inf]  [worker] health check server listening on 8080
+2026-07-15T23:45:25.097482151Z [inf]  [worker] polled 3117 live tokens on chain 4663 in 38396ms
+2026-07-15T23:45:25.097487251Z [inf]  [worker] holder-count estimate: 3117 tokens / 60 per cycle / every 120s ≈ 52 cycles ≈ 104 min for first full pass (tokens ordered by market cap desc — highest-value tokens get counts first)
+2026-07-15T23:45:45.029389646Z [err]  [tokenHolders] cache read failed: <html>
+2026-07-15T23:45:45.029394566Z [err]  <head><title>414 Request-URI Too Large</title></head>
+2026-07-15T23:45:45.029399796Z [err]  <body>
+2026-07-15T23:45:45.029406096Z [err]  <center><h1>414 Request-URI Too Large</h1></center>
+2026-07-15T23:45:45.029411526Z [err]  <hr><center>cloudflare</center>
+2026-07-15T23:45:45.029416656Z [err]  </body>
+2026-07-15T23:45:45.029421186Z [err]  </html>
+2026-07-15T23:45:45.029427106Z [err]  
+2026-07-15T23:46:25.037725885Z [err]  [worker] previous poll still running, skipping this tick
+2026-07-15T23:46:32.284754411Z [inf]  [worker] polled 3117 live tokens on chain 4663 in 38966ms

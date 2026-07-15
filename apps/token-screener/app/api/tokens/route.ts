@@ -109,21 +109,21 @@ export async function GET(req: NextRequest) {
   const sort:  SortKey  = VALID_SORTS.includes(rawSort  as SortKey)  ? (rawSort  as SortKey)  : "marketCap";
   const order: SortOrder = VALID_ORDERS.includes(rawOrder as SortOrder) ? (rawOrder as SortOrder) : "desc";
 
+  // mode=new  → 50 newest tokens (deploy_date DESC, limit 50)
+  // mode=mc   → all tokens with market_cap >= $5 K (market_cap DESC, no limit)
+  const rawMode = searchParams.get("mode") ?? "new";
+  const mode = rawMode === "mc" ? "mc" : "new";
+
   try {
-    // Always fetch the 100 most-recently-launched live tokens — sorted by
-    // deploy_date DESC so the newest launch is always at index 0. Client-side
-    // code re-sorts by the user's chosen key (marketCap / volume / etc.) after
-    // receiving the payload. This keeps the screener focused on new activity:
-    // when a token launches it appears immediately; the oldest one drops off.
     const [rows, holderMap] = await Promise.all([
-      getLiveTokens(ROBINHOOD_CHAIN_ID, "newest", "desc", "", 100),
+      mode === "new"
+        ? getLiveTokens(ROBINHOOD_CHAIN_ID, "newest", "desc", "", 50)
+        : getLiveTokens(ROBINHOOD_CHAIN_ID, "marketCap", "desc", "", undefined, 5_000),
       getHolderCountsByChain(ROBINHOOD_CHAIN_ID),
     ]);
     const items = rows.map((r) => rowToItem(r, holderMap));
-    // Pass sort/order through so callers can inspect what was requested,
-    // but the actual ordering is done client-side in page.tsx.
     void sort; void order;
-    return NextResponse.json({ items, total: items.length });
+    return NextResponse.json({ items, total: items.length, mode });
   } catch (err) {
     console.error("[/api/tokens]", err);
     return NextResponse.json(
