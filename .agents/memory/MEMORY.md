@@ -2,3 +2,4 @@
 - [GitHub push without a connector](github-push-with-raw-token.md) — how to create a repo and push using a raw `GITHUB_TOKEN` secret when no GitHub integration/connector is set up.
 - [Supabase DDL access](supabase-ddl-access.md) — service-role key can't run CREATE TABLE; need a separate DB connection string, and password-reset auth failures can be propagation delay.
 - [Railway deploy via project token](railway-project-token-deploy.md) — project tokens can't do account-level/raw-mutation calls; free-plan service limits block new services even when existing ones are all Failed.
+- [ape.store price derivation](apestore-price-derivation.md) — list endpoint has no real price field; derive it from marketCap/totalSupply(~1e9) instead of scaling the raw priceAfter integer.
