@@ -132,22 +132,16 @@ export async function upsertTokenSnapshot(
   chain: number,
   items: ApeStoreTokenListItem[],
 ): Promise<void> {
-  // Diagnostic: confirm function is entered and supabase client state
-  console.log(`[tokenData] upsertTokenSnapshot() called — items=${items.length}, chain=${chain}`);
-  const supabase = getSupabaseAdmin();
-  if (!supabase) {
-    console.error("[tokenData] upsertTokenSnapshot() — getSupabaseAdmin() returned null, skipping upsert");
+  const url = process.env.SUPABASE_URL_PROJECT ?? "";
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  if (!url || !key) {
+    console.error("[tokenData] upsertTokenSnapshot — SUPABASE_URL_PROJECT / SUPABASE_SERVICE_ROLE_KEY not set");
     return;
   }
-  if (items.length === 0) {
-    console.warn("[tokenData] upsertTokenSnapshot() — items array is empty, skipping upsert");
-    return;
-  }
+  if (items.length === 0) return;
 
+  const endpoint = `${url.replace(/\/$/, "")}/rest/v1/tokens`;
   const now = new Date().toISOString();
-
-  // ape.store price field is unreliable on this chain; derive from marketCap /
-  // ~1 billion total supply (empirically observed constant for new launches).
   const TOTAL_SUPPLY = 1_000_000_000;
 
   const rows = items.map((t) => ({
@@ -173,20 +167,30 @@ export async function upsertTokenSnapshot(
     last_seen_at: now,
   }));
 
-  // Batch upsert in chunks to stay well under Supabase's 2 MB request limit.
+  // Batch upsert via raw REST fetch — mirrors the read pattern in getLiveTokens.
+  // supabase-js .upsert() was silently failing in the Railway container despite
+  // valid env vars; raw fetch is the proven-working pattern for this environment.
   const CHUNK = 500;
   let totalUpserted = 0;
   for (let i = 0; i < rows.length; i += CHUNK) {
     const chunk = rows.slice(i, i + CHUNK);
-    const { error } = await supabase
-      .from("tokens")
-      .upsert(chunk, { onConflict: "chain,address" });
-    if (error) {
-      console.error(`[tokenData] upsert chunk ${i}–${i + chunk.length} failed:`, error.message);
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        apikey:        key,
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+        // merge-duplicates = upsert on conflict (chain, address PK)
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify(chunk),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error(`[tokenData] upsert chunk ${i}–${i + chunk.length} HTTP ${res.status}:`, body.slice(0, 200));
     } else {
       totalUpserted += chunk.length;
-      console.log(`[tokenData] upsert chunk ${i}–${i + chunk.length} OK`);
     }
   }
-  console.log(`[tokenData] upsertTokenSnapshot() done — ${totalUpserted}/${rows.length} rows upserted to chain ${chain}`);
+  console.log(`[tokenData] upserted ${totalUpserted}/${rows.length} tokens to chain ${chain} (last_seen_at=${now})`);
 }
