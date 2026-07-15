@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ape Screener — Coming Soon</title>
+<title>Ape Screener — Live on Robinhood Chain</title>
 <meta name="description" content="A real-time screener for tokens launched on ape.store, Robinhood Chain. Market cap, volume, and wallet-manipulation warnings in one terminal.">
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -153,54 +152,40 @@
     gap:22px;
   }
 
-  .notify-form{
-    display:flex;
-    border:1px solid var(--line);
-    border-radius:2px;
-    overflow:hidden;
-  }
-
-  .notify-form input{
-    background:transparent;
-    border:none;
-    padding:14px 16px;
-    color:var(--paper);
-    font-family:'IBM Plex Mono', monospace;
-    font-size:14px;
-    width:220px;
-  }
-
-  .notify-form input:focus{
-    outline:none;
-    background:rgba(255,199,44,0.06);
-  }
-
-  .notify-form input::placeholder{
-    color:var(--paper-dim);
-  }
-
-  .notify-form button{
+  /* ---------- Enter the Jungle button ---------- */
+  .enter-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
     background:var(--banana);
     color:var(--void);
-    border:none;
-    padding:14px 22px;
     font-family:'IBM Plex Mono', monospace;
     font-weight:600;
-    font-size:13px;
+    font-size:14px;
     letter-spacing:0.04em;
-    cursor:pointer;
-    transition:background 0.15s ease;
+    padding:14px 28px;
+    border-radius:2px;
+    text-decoration:none;
+    transition:background 0.15s ease, transform 0.15s ease;
   }
 
-  .notify-form button:hover{
+  .enter-btn:hover{
     background:var(--amber);
+    transform:translateY(-1px);
   }
 
-  .notify-form button:focus-visible,
-  .icon-link:focus-visible,
-  .notify-form input:focus-visible{
+  .enter-btn:focus-visible{
     outline:2px solid var(--banana);
     outline-offset:2px;
+  }
+
+  .enter-btn .arrow{
+    font-size:16px;
+    transition:transform 0.15s ease;
+  }
+
+  .enter-btn:hover .arrow{
+    transform:translateX(3px);
   }
 
   .socials{
@@ -222,6 +207,11 @@
   }
 
   .icon-link svg{width:18px;height:18px;fill:var(--paper);}
+
+  .icon-link:focus-visible{
+    outline:2px solid var(--banana);
+    outline-offset:2px;
+  }
 
   /* ---------- Hero visual ---------- */
   .hero-visual{
@@ -346,52 +336,11 @@
     .hero p{margin-left:auto;margin-right:auto;}
     .eyebrow{justify-content:center;}
     .hero-actions{flex-direction:column;align-items:center;}
-    .notify-form{width:100%;max-width:360px;}
-    .notify-form input{width:100%;}
     footer{flex-direction:column;gap:16px;text-align:center;}
   }
 
   @media (prefers-reduced-motion: reduce){
     .wordmark .dot{animation:none;}
-  }
-
-  /* ---------- Added: Enter App button ----------
-     The only addition on top of the original landing page design, per request.
-     Scoped to new classes only; no existing rule above is modified. */
-  .nav-right{
-    display:flex;
-    align-items:center;
-    gap:12px;
-  }
-
-  .enter-app-btn{
-    display:inline-flex;
-    align-items:center;
-    gap:6px;
-    background:var(--banana);
-    color:var(--void);
-    font-size:12px;
-    font-weight:600;
-    letter-spacing:0.04em;
-    padding:9px 16px;
-    border-radius:999px;
-    text-decoration:none;
-    transition:background 0.15s ease, transform 0.15s ease;
-  }
-
-  .enter-app-btn:hover{
-    background:var(--amber);
-    transform:translateY(-1px);
-  }
-
-  .enter-app-btn:focus-visible{
-    outline:2px solid var(--banana);
-    outline-offset:2px;
-  }
-
-  @media (max-width: 500px){
-    .nav-right{gap:8px;}
-    .chain-tag{display:none;}
   }
 </style>
 </head>
@@ -404,22 +353,18 @@
     <span class="dot"></span>
     APE SCREENER
   </div>
-  <div class="nav-right">
-    <div class="chain-tag mono">CHAIN: ROBINHOOD · #4663</div>
-    <a href="%VITE_APP_URL%" class="enter-app-btn mono">Enter App →</a>
-  </div>
+  <div class="chain-tag mono">CHAIN: ROBINHOOD · #4663</div>
 </header>
 
 <section class="hero">
   <div class="hero-copy">
-    <div class="eyebrow">Launching soon on ape.store</div>
+    <div class="eyebrow">Live on ape.store · Robinhood Chain</div>
     <h1 class="display">SEE THE<br>ORCHARD<br>BEFORE<br>YOU <span>APE.</span></h1>
     <p>A live screener for every token launched on ape.store's Robinhood Chain — market cap, volume, and holders, refreshed in real time. Built to flag repeat dev wallets and bundled supply before you buy, not after.</p>
     <div class="hero-actions">
-      <form class="notify-form" action="#" method="post">
-        <input type="email" placeholder="your@email.com" aria-label="Email for launch notice" required>
-        <button type="submit">Notify me</button>
-      </form>
+      <a href="%VITE_APP_URL%" class="enter-btn mono">
+        ENTER THE JUNGLE <span class="arrow">→</span>
+      </a>
       <div class="socials">
         <a href="https://x.com/apescreener_" class="icon-link" aria-label="Follow on X">
           <svg viewBox="0 0 24 24"><path d="M14.05 10.24 22.53 0h-2.01l-7.36 8.89L7.29 0H0l8.88 13.34L0 24h2.01l7.78-9.39L16.71 24H24L14.05 10.24Zm-2.75 3.32-.9-1.32L2.9 1.56h3.09l5.8 8.5.9 1.32 7.54 11.05h-3.09l-6.15-9.02Z"/></svg>
