@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import { formatUsd, formatPriceRaw, formatRelativeTime, shortenAddress } from "@/lib/format";
+import { formatUsd, derivePriceFromMarketCap, formatRelativeTime, shortenAddress } from "@/lib/format";
 import { resolveIpfsUri } from "@/lib/ipfs";
 import type { ApeStoreTokenListItem } from "@/lib/apestore";
 
@@ -95,7 +95,7 @@ export function TokenTable({
                 </div>
               </td>
               <td className="px-4 py-3 text-right font-mono tabular text-ink">
-                {formatPriceRaw(item.priceAfter)}
+                {formatUsd(derivePriceFromMarketCap(item.marketCap))}
               </td>
               <td className="px-4 py-3 text-right font-mono tabular text-ink">{formatUsd(item.marketCap)}</td>
               <td className="px-4 py-3 text-right font-mono tabular text-muted">
