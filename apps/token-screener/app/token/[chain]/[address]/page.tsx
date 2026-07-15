@@ -191,7 +191,7 @@ export default function TokenDetailPage() {
           </div>
           <div className="flex items-center gap-3">
             <a
-              href={`https://ape.store/token/${token.chain}/${token.address}`}
+              href={`https://ape.store/robinhood/${token.address}`}
               target="_blank"
               rel="noopener noreferrer"
               className="font-mono text-[11px] text-muted hover:text-acid border border-line rounded-full px-3 py-1 transition-colors hover:border-acid"

@@ -80,7 +80,11 @@ export default function HomePage() {
         // each creator in this page has launched (per our recorded history).
         const creators = Array.from(new Set(all.map((item) => item.creator)));
         if (creators.length > 0) {
-          fetch(`/api/wallet/launch-counts?creators=${creators.join(",")}`)
+          fetch("/api/wallet/launch-counts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ creators }),
+          })
             .then((r) => r.json())
             .then((counts) => {
               if (!cancelled) setLaunchCounts(counts ?? {});
