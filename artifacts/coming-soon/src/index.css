@@ -78,71 +78,73 @@
   --elevate-1: rgba(0, 0, 0, 0.03);
   --elevate-2: rgba(0, 0, 0, 0.08);
 
-  --background: red; /*replace with H S L */
+  /* Same banana/dark palette as the ApeScreener app for brand consistency:
+     canvas #0B0D08, panel #15130C, accent #FFC72C/#FF9F1C, text #F3EED9/#A8A290. */
+  --background: 100 27% 3%; /* #0B0D08 */
 
-  --foreground: red; /*replace with H S L */
+  --foreground: 48 39% 89%; /* #F3EED9 */
 
-  --border: red; /*replace with H S L */
+  --border: 55 25% 14%; /* #2A2717 */
 
-  --card: red; /*replace with H S L */
+  --card: 45 19% 8%; /* #15130C */
 
-  --card-foreground: red; /*replace with H S L */
+  --card-foreground: 48 39% 89%;
 
-  --card-border: red; /*replace with H S L */
+  --card-border: 55 25% 14%;
 
-  --sidebar: red; /*replace with H S L */
+  --sidebar: 45 19% 8%;
 
-  --sidebar-foreground: red; /*replace with H S L */
+  --sidebar-foreground: 48 39% 89%;
 
-  --sidebar-border: red; /*replace with H S L */
+  --sidebar-border: 55 25% 14%;
 
-  --sidebar-primary: red; /*replace with H S L */
+  --sidebar-primary: 43 100% 58%; /* #FFC72C */
 
-  --sidebar-primary-foreground: red; /*replace with H S L */
+  --sidebar-primary-foreground: 100 27% 3%;
 
-  --sidebar-accent: red; /*replace with H S L */
+  --sidebar-accent: 32 98% 56%; /* #FF9F1C */
 
-  --sidebar-accent-foreground: red; /*replace with H S L */
+  --sidebar-accent-foreground: 100 27% 3%;
 
-  --sidebar-ring: red; /*replace with H S L */
+  --sidebar-ring: 43 100% 58%;
 
-  --popover: red; /*replace with H S L */
+  --popover: 45 19% 8%;
 
-  --popover-foreground: red; /*replace with H S L */
+  --popover-foreground: 48 39% 89%;
 
-  --popover-border: red; /*replace with H S L */
+  --popover-border: 55 25% 14%;
 
-  --primary: red; /*replace with H S L */
+  --primary: 43 100% 58%; /* #FFC72C */
 
-  --primary-foreground: red; /*replace with H S L */
+  --primary-foreground: 100 27% 3%;
 
-  --secondary: red; /*replace with H S L */
+  --secondary: 32 98% 56%; /* #FF9F1C */
 
-  --secondary-foreground: red; /*replace with H S L */
+  --secondary-foreground: 100 27% 3%;
 
-  --muted: red; /*replace with H S L */
+  --muted: 45 19% 8%;
 
-  --muted-foreground: red; /*replace with H S L */
+  --muted-foreground: 32 8% 63%; /* #A8A290 */
 
-  --accent: red; /*replace with H S L */
+  --accent: 32 98% 56%;
 
-  --accent-foreground: red; /*replace with H S L */
+  --accent-foreground: 100 27% 3%;
 
-  --destructive: red; /*replace with H S L */
+  --destructive: 4 100% 68%; /* #ff5d5d */
 
-  --destructive-foreground: red; /*replace with H S L */
+  --destructive-foreground: 100 27% 3%;
 
-  --input: red; /*replace with H S L */
-  --ring: red; /*replace with H S L */
-  --chart-1: red; /*replace with H S L */
-  --chart-2: red; /*replace with H S L */
-  --chart-3: red; /*replace with H S L */
-  --chart-4: red; /*replace with H S L */
-  --chart-5: red; /*replace with H S L */
+  --input: 55 25% 14%;
+  --ring: 43 100% 58%;
+  --chart-1: 43 100% 58%;
+  --chart-2: 32 98% 56%;
+  --chart-3: 48 39% 89%;
+  --chart-4: 32 8% 63%;
+  --chart-5: 4 100% 68%;
 
-  --app-font-sans: 'Inter', sans-serif;
+  --app-font-sans: 'Archivo Black', ui-sans-serif, sans-serif;
   --app-font-serif: Georgia, serif;
-  --app-font-mono: Menlo, monospace;
+  --app-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --radius: 0.5rem; /* 8px */
   --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0); /*replace with H S L */
   --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0); /*replace with H S L */
@@ -227,68 +229,69 @@
   --elevate-1: rgba(255, 255, 255, 0.04);
   --elevate-2: rgba(255, 255, 255, 0.09);
 
-  --background: red; /*replace with H S L */
+  /* This app is dark-only (banana/dark ApeScreener brand palette) — .dark
+     mirrors :root rather than defining a separate light theme. */
+  --background: 100 27% 3%;
 
-  --foreground: red; /*replace with H S L */
+  --foreground: 48 39% 89%;
 
-  --border: red; /*replace with H S L */
+  --border: 55 25% 14%;
 
-  --card: red; /*replace with H S L */
+  --card: 45 19% 8%;
 
-  --card-foreground: red; /*replace with H S L */
+  --card-foreground: 48 39% 89%;
 
-  --card-border: red; /*replace with H S L */
+  --card-border: 55 25% 14%;
 
-  --sidebar: red; /*replace with H S L */
+  --sidebar: 45 19% 8%;
 
-  --sidebar-foreground: red; /*replace with H S L */
+  --sidebar-foreground: 48 39% 89%;
 
-  --sidebar-border: red; /*replace with H S L */
+  --sidebar-border: 55 25% 14%;
 
-  --sidebar-primary: red; /*replace with H S L */
+  --sidebar-primary: 43 100% 58%;
 
-  --sidebar-primary-foreground: red; /*replace with H S L */
+  --sidebar-primary-foreground: 100 27% 3%;
 
-  --sidebar-accent: red; /*replace with H S L */
+  --sidebar-accent: 32 98% 56%;
 
-  --sidebar-accent-foreground: red; /*replace with H S L */
+  --sidebar-accent-foreground: 100 27% 3%;
 
-  --sidebar-ring: red; /*replace with H S L */
+  --sidebar-ring: 43 100% 58%;
 
-  --popover: red; /*replace with H S L */
+  --popover: 45 19% 8%;
 
-  --popover-foreground: red; /*replace with H S L */
+  --popover-foreground: 48 39% 89%;
 
-  --popover-border: red; /*replace with H S L */
+  --popover-border: 55 25% 14%;
 
-  --primary: red; /*replace with H S L */
+  --primary: 43 100% 58%;
 
-  --primary-foreground: red; /*replace with H S L */
+  --primary-foreground: 100 27% 3%;
 
-  --secondary: red; /*replace with H S L */
+  --secondary: 32 98% 56%;
 
-  --secondary-foreground: red; /*replace with H S L */
+  --secondary-foreground: 100 27% 3%;
 
-  --muted: red; /*replace with H S L */
+  --muted: 45 19% 8%;
 
-  --muted-foreground: red; /*replace with H S L */
+  --muted-foreground: 32 8% 63%;
 
-  --accent: red; /*replace with H S L */
+  --accent: 32 98% 56%;
 
-  --accent-foreground: red; /*replace with H S L */
+  --accent-foreground: 100 27% 3%;
 
-  --destructive: red; /*replace with H S L */
+  --destructive: 4 100% 68%;
 
-  --destructive-foreground: red; /*replace with H S L */
+  --destructive-foreground: 100 27% 3%;
 
-  /* Used as the border around inputs. Dark mode: Should be a border that is light enough to have high contrast when rendered on a --card background. More contrast than standard --border */
-  --input: red; /*replace with H S L */
-  --ring: red; /*replace with H S L */
-  --chart-1: red; /*replace with H S L */
-  --chart-2: red; /*replace with H S L */
-  --chart-3: red; /*replace with H S L */
-  --chart-4: red; /*replace with H S L */
-  --chart-5: red; /*replace with H S L */
+  --input: 55 25% 14%;
+  --ring: 43 100% 58%;
+  --chart-1: 43 100% 58%;
+  --chart-2: 32 98% 56%;
+  --chart-3: 48 39% 89%;
+  --chart-4: 32 8% 63%;
+  --chart-5: 4 100% 68%;
 
   --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
   --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0);
