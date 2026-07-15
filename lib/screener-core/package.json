@@ -1,0 +1,21 @@
+{
+  "name": "@workspace/screener-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./apestore": "./src/apestore.ts",
+    "./supabase": "./src/supabase.ts",
+    "./walletLaunches": "./src/walletLaunches.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}
