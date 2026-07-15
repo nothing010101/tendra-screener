@@ -88,6 +88,10 @@ export async function getLiveTokens(
       apikey:          key,
       Authorization:   `Bearer ${key}`,
       "Content-Type":  "application/json",
+      // Supabase REST caps rows at the project max (often 1 000 on free tier)
+      // even when `limit` is larger. Range header overrides that cap.
+      "Range":         "0-9999",
+      "Range-Unit":    "items",
     },
     // Never cache — data changes every 30 s from the worker.
     cache: "no-store",
