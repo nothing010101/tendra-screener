@@ -1,146 +1,110 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar, SortKey, SortOrder } from "@/components/Toolbar";
 import { TokenTable } from "@/components/TokenTable";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { ApeStoreTokenListItem } from "@/lib/apestore";
 
-const PAGE_SIZE = 24;
-// ape.store's `pageCount` field is not a reliable page count (it returns a
-// constant regardless of page/filter) — see lib/screener-core/apestore.ts for
-// details. The only reliable end-of-list signal is a page coming back with
-// fewer than PAGE_SIZE items, so we page forward in batches until we see one,
-// instead of trusting pageCount or a small hardcoded page cap.
-const PAGE_FETCH_CONCURRENCY = 5;
-const MAX_PAGE_SAFETY_CAP = 1000;
+// Tokens are now served from Supabase via /api/tokens in a single request.
+// Sort is handled server-side (ORDER BY in Supabase). Search is client-side
+// because data is already in memory and instant filtering beats a round-trip.
+// When sort changes, we re-fetch with the new sort params.
 
 export default function HomePage() {
   const { t } = useLanguage();
-  const [items, setItems] = useState<ApeStoreTokenListItem[]>([]);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("marketCap");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
-  const [launchCounts, setLaunchCounts] = useState<Record<string, number>>({});
+  const [items, setItems]                   = useState<ApeStoreTokenListItem[]>([]);
+  const [status, setStatus]                 = useState<"loading" | "ready" | "error">("loading");
+  const [search, setSearch]                 = useState("");
+  const [sortKey, setSortKey]               = useState<SortKey>("marketCap");
+  const [sortOrder, setSortOrder]           = useState<SortOrder>("desc");
+  const [launchCounts, setLaunchCounts]     = useState<Record<string, number>>({});
   const [showSerialDevOnly, setShowSerialDevOnly] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
-  const [nowTick, setNowTick] = useState(0);
+  const [lastUpdated, setLastUpdated]       = useState<number | null>(null);
+  const [nowTick, setNowTick]               = useState(0);
 
-  // The 20s poll below does fetch fresh data and does call setItems with it —
-  // confirmed the numbers genuinely change each cycle. But per-cycle drift is
-  // often just a few cents on a ~$1,700 market cap, so a refresh can be easy
-  // to miss just by staring at the table. This ticker drives a small "updated
-  // Ns ago" readout so a refresh is visible even when the numbers barely move.
+  // Drive the "updated Ns ago" counter.
   useEffect(() => {
     const tick = setInterval(() => setNowTick((n) => n + 1), 1000);
     return () => clearInterval(tick);
   }, []);
 
+  // Keep a ref to the latest sort values so the polling interval always uses
+  // the current sort without needing to be re-created on every change.
+  const sortRef = useRef({ sortKey, sortOrder });
+  useEffect(() => { sortRef.current = { sortKey, sortOrder }; }, [sortKey, sortOrder]);
+
+  const fetchTokens = useCallback(async (sk: SortKey, so: SortOrder, signal?: AbortSignal) => {
+    const res = await fetch(`/api/tokens?sort=${sk}&order=${so}`, { signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
+    const ac = new AbortController();
 
     async function load() {
       try {
-        const first = await fetch("/api/tokens?page=1").then((r) => r.json());
-        if (first.error) throw new Error(first.error);
+        const { sk, so } = { sk: sortRef.current.sortKey, so: sortRef.current.sortOrder };
+        const data = await fetchTokens(sk, so, ac.signal);
+        if (data.error) throw new Error(data.error);
 
-        let all: ApeStoreTokenListItem[] = first.items ?? [];
-
-        if (all.length >= PAGE_SIZE) {
-          let nextPage = 2;
-          let reachedEnd = false;
-
-          while (!reachedEnd && nextPage <= MAX_PAGE_SAFETY_CAP) {
-            const batchPages = Array.from({ length: PAGE_FETCH_CONCURRENCY }, (_, i) => nextPage + i);
-            const batch = await Promise.all(
-              batchPages.map((page) => fetch(`/api/tokens?page=${page}`).then((r) => r.json())),
-            );
-
-            for (const page of batch) {
-              const pageItems: ApeStoreTokenListItem[] = page?.items ?? [];
-              all = all.concat(pageItems);
-              if (pageItems.length < PAGE_SIZE) {
-                reachedEnd = true;
-                break;
-              }
-            }
-
-            nextPage += PAGE_FETCH_CONCURRENCY;
-          }
-        }
-
+        const all: ApeStoreTokenListItem[] = data.items ?? [];
         if (!cancelled) {
           setItems(all);
           setStatus("ready");
           setLastUpdated(Date.now());
         }
 
-        // Phase 3: dev-wallet tracking — batched lookup of how many tokens
-        // each creator in this page has launched (per our recorded history).
+        // Serial-dev tracking: fetch how many tokens each creator has launched.
         const creators = Array.from(new Set(all.map((item) => item.creator)));
-        if (creators.length > 0) {
+        if (creators.length > 0 && !cancelled) {
           fetch("/api/wallet/launch-counts", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ creators }),
           })
             .then((r) => r.json())
-            .then((counts) => {
-              if (!cancelled) setLaunchCounts(counts ?? {});
-            })
+            .then((counts) => { if (!cancelled) setLaunchCounts(counts ?? {}); })
             .catch((err) => console.error("[launch-counts]", err));
         }
-      } catch (err) {
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === "AbortError") return;
         console.error(err);
         if (!cancelled) setStatus("error");
       }
     }
 
     load();
-    const interval = setInterval(load, 20_000);
+    // Re-poll every 30s to stay in sync with the worker's upsert cadence.
+    const interval = setInterval(load, 30_000);
     return () => {
       cancelled = true;
+      ac.abort();
       clearInterval(interval);
     };
-  }, []);
+  // Re-run when sort changes so the new sort is reflected immediately.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortKey, sortOrder, fetchTokens]);
 
-  const updatedSecondsAgo = lastUpdated != null ? Math.max(0, Math.floor((Date.now() - lastUpdated) / 1000)) : null;
-  void nowTick; // referenced only to force a re-render each second so the line above recomputes
+  const updatedSecondsAgo =
+    lastUpdated != null ? Math.max(0, Math.floor((Date.now() - lastUpdated) / 1000)) : null;
+  void nowTick;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    // Server already sorted; client only filters (search + serial-dev toggle).
     let list = q
-      ? items.filter(
-          (t) => t.name.toLowerCase().includes(q) || t.symbol.toLowerCase().includes(q),
-        )
+      ? items.filter((t) => t.name.toLowerCase().includes(q) || t.symbol.toLowerCase().includes(q))
       : items;
 
     if (showSerialDevOnly) {
       list = list.filter((t) => (launchCounts[t.creator.toLowerCase()] ?? 0) > 1);
     }
 
-    list = [...list].sort((a, b) => {
-      let cmp = 0;
-      switch (sortKey) {
-        case "marketCap":
-          cmp = a.marketCap - b.marketCap;
-          break;
-        case "volume":
-          cmp = (a.volumeStat?.volumeUSD ?? 0) - (b.volumeStat?.volumeUSD ?? 0);
-          break;
-        case "name":
-          cmp = a.name.localeCompare(b.name);
-          break;
-        case "newest":
-          cmp = new Date(a.createDate).getTime() - new Date(b.createDate).getTime();
-          break;
-      }
-      return sortOrder === "desc" ? -cmp : cmp;
-    });
-
     return list;
-  }, [items, search, sortKey, sortOrder, showSerialDevOnly, launchCounts]);
+  }, [items, search, showSerialDevOnly, launchCounts]);
 
   return (
     <main className="min-h-screen bg-canvas bg-grid bg-[size:32px_32px]">
@@ -155,7 +119,10 @@ export default function HomePage() {
             <p className="mt-1 text-sm text-muted">{t.tagline}</p>
           </div>
           {updatedSecondsAgo != null && (
-            <div className="flex items-center gap-1.5 font-mono text-[11px] text-muted" title={t.updatedAgo.replace("{n}", String(updatedSecondsAgo))}>
+            <div
+              className="flex items-center gap-1.5 font-mono text-[11px] text-muted"
+              title={t.updatedAgo.replace("{n}", String(updatedSecondsAgo))}
+            >
               <span
                 key={lastUpdated}
                 className="h-1.5 w-1.5 rounded-full bg-acid2 [animation:ping_0.6s_ease-out_1]"

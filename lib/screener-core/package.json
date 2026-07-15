@@ -9,7 +9,8 @@
     "./supabase": "./src/supabase.ts",
     "./walletLaunches": "./src/walletLaunches.ts",
     "./alchemy": "./src/alchemy.ts",
-    "./tokenHolders": "./src/tokenHolders.ts"
+    "./tokenHolders": "./src/tokenHolders.ts",
+    "./tokenData": "./src/tokenData.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"

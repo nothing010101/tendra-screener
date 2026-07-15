@@ -1,19 +1,20 @@
-// Standalone dev-wallet tracking worker.
+// Standalone polling worker — single source of truth for ape.store data.
 //
-// The Next.js app only calls recordTokenLaunches() when a browser has the
-// screener page open (it happens inside the /api/tokens route handler, which
-// only runs on incoming requests). That means wallet_launches history has
-// gaps whenever nobody is looking at the site.
+// Responsibilities:
+//   1. Fetch all live tokens from ape.store every POLL_INTERVAL_MS (30s).
+//   2. Upsert full token snapshots into the Supabase `tokens` table so the
+//      Next.js screener can read from one Supabase query instead of 129
+//      paginated ape.store API calls.
+//   3. Record creator → token mappings in wallet_launches (dev-wallet tracking).
+//   4. Refresh holder counts from Alchemy on a slower cadence (every 2 min).
 //
-// This process closes that gap: it runs continuously on its own (deployed as
-// a long-running Railway service, not a serverless function) and polls
-// ape.store directly on a fixed interval, independent of any user traffic.
-// It shares the exact same recordTokenLaunches() implementation from
-// @workspace/screener-core — no duplicated upsert logic.
+// ape.store API must ONLY be called from this process — never from the
+// Next.js app or its API routes.
 
 import {
   fetchAllLiveTokens,
   recordTokenLaunches,
+  upsertTokenSnapshot,
   ROBINHOOD_CHAIN_ID,
   computeTokenHolderCount,
   getCachedHolderCounts,
@@ -59,7 +60,11 @@ async function pollOnce(): Promise<void> {
   const startedAt = Date.now();
   try {
     const items = await fetchAllLiveTokens(ROBINHOOD_CHAIN_ID);
-    await recordTokenLaunches(items);
+    // Run snapshot upsert and launch-record in parallel — independent writes.
+    await Promise.all([
+      upsertTokenSnapshot(ROBINHOOD_CHAIN_ID, items),
+      recordTokenLaunches(items),
+    ]);
     latestLiveAddresses = items.map((item) => item.address);
     // Highest market cap first, ties broken by volume — the pairs most
     // people are actually looking at get a real holder count first, instead
