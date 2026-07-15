@@ -9,6 +9,7 @@ import { resolveIpfsUri } from "@/lib/ipfs";
 import { TradesTable } from "@/components/TradesTable";
 import { DevWalletWarning } from "@/components/DevWalletWarning";
 import { FundingTrace } from "@/components/FundingTrace";
+import { BundlerCheck } from "@/components/BundlerCheck";
 import type { ApeStoreTokenDetailResponse, ApeStoreTrade } from "@/lib/apestore";
 import type { WalletLaunch } from "@/lib/walletLaunches";
 import type { FundingTrace as FundingTraceData } from "@/lib/walletTransfers";
@@ -188,9 +189,19 @@ export default function TokenDetailPage() {
               {token.symbol} · {shortenAddress(token.address)}
             </p>
           </div>
-          <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.2em] text-acid">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-acid" />
-            {t.liveBadge}
+          <div className="flex items-center gap-3">
+            <a
+              href={`https://ape.store/token/${token.chain}/${token.address}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-[11px] text-muted hover:text-acid border border-line rounded-full px-3 py-1 transition-colors hover:border-acid"
+            >
+              ape.store ↗
+            </a>
+            <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.2em] text-acid">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-acid" />
+              {t.liveBadge}
+            </span>
           </div>
         </div>
 
@@ -236,6 +247,8 @@ export default function TokenDetailPage() {
         {token.holderCount == null && (
           <p className="mt-1 font-mono text-[11px] text-muted/70">{t.detail.holdersNote}</p>
         )}
+
+        <BundlerCheck chain={String(token.chain)} address={token.address} />
 
         <FundingTrace status={fundingStatus} trace={fundingTrace} funderFanOut={funderFanOut} />
 

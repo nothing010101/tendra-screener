@@ -33,6 +33,26 @@ async function alchemyRpc<T>(method: string, params: unknown[]): Promise<T> {
   return body.result;
 }
 
+// First N unique buyer addresses for a token — used by the bundler-detection
+// endpoint to find who received tokens in the earliest transfers after launch.
+// Returns wallet addresses in chronological order, capped at `maxBuyers`.
+export async function getEarlyBuyers(tokenAddress: string, maxBuyers = 30): Promise<string[]> {
+  const ZERO = "0x0000000000000000000000000000000000000000";
+  const result = await alchemyRpc<{ transfers: AlchemyAssetTransfer[] }>(
+    "alchemy_getAssetTransfers",
+    [{ contractAddresses: [tokenAddress], category: ["erc20"], order: "asc", maxCount: "0x3e8" }],
+  );
+  const seen = new Set<string>();
+  for (const t of result.transfers ?? []) {
+    const to = t.to?.toLowerCase();
+    if (to && to !== ZERO) {
+      seen.add(to);
+      if (seen.size >= maxBuyers) break;
+    }
+  }
+  return Array.from(seen);
+}
+
 // Earliest incoming native/internal transfers to `address` — used to find who
 // funded a wallet before it started deploying tokens. `order: "asc"` +
 // small `maxCount` gets us the earliest activity without paging through the

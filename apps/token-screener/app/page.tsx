@@ -23,6 +23,7 @@ export default function HomePage() {
   const [sortKey, setSortKey] = useState<SortKey>("marketCap");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [launchCounts, setLaunchCounts] = useState<Record<string, number>>({});
+  const [showSerialDevOnly, setShowSerialDevOnly] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [nowTick, setNowTick] = useState(0);
 
@@ -111,6 +112,10 @@ export default function HomePage() {
         )
       : items;
 
+    if (showSerialDevOnly) {
+      list = list.filter((t) => (launchCounts[t.creator.toLowerCase()] ?? 0) > 1);
+    }
+
     list = [...list].sort((a, b) => {
       let cmp = 0;
       switch (sortKey) {
@@ -131,7 +136,7 @@ export default function HomePage() {
     });
 
     return list;
-  }, [items, search, sortKey, sortOrder]);
+  }, [items, search, sortKey, sortOrder, showSerialDevOnly, launchCounts]);
 
   return (
     <main className="min-h-screen bg-canvas bg-grid bg-[size:32px_32px]">
@@ -164,6 +169,8 @@ export default function HomePage() {
           sortOrder={sortOrder}
           onSortOrderChange={setSortOrder}
           resultCount={filtered.length}
+          showSerialDevOnly={showSerialDevOnly}
+          onSerialDevOnlyChange={setShowSerialDevOnly}
         />
 
         <div className="mt-6">

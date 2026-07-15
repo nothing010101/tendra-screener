@@ -25,6 +25,7 @@ export interface Dictionary {
   liveBadge: string;
   holdersUnavailable: string;
   holdersAsOf: string;
+  serialDevFilter: string;
   updatedAgo: string;
   resultCount: string;
   footerNote: string;
@@ -97,6 +98,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     liveBadge: "Live",
     holdersUnavailable: "N/A",
     holdersAsOf: "as of {t}",
+    serialDevFilter: "Serial dev",
     updatedAgo: "Updated {n}s ago",
     resultCount: "{count} tokens on Robinhood Chain",
     footerNote: "Data sourced live from ape.store. Not financial advice.",
@@ -167,6 +169,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     liveBadge: "实时",
     holdersUnavailable: "暂无",
     holdersAsOf: "{t}前更新",
+    serialDevFilter: "连续发币",
     updatedAgo: "{n} 秒前更新",
     resultCount: "Robinhood Chain 上共 {count} 个代币",
     footerNote: "数据实时来自 ape.store，非投资建议。",
@@ -237,6 +240,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     liveBadge: "Live",
     holdersUnavailable: "N/V",
     holdersAsOf: "Stand: vor {t}",
+    serialDevFilter: "Serial Dev",
     updatedAgo: "Vor {n}s aktualisiert",
     resultCount: "{count} Token auf der Robinhood Chain",
     footerNote: "Daten live von ape.store. Keine Anlageberatung.",

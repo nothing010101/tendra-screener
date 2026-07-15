@@ -14,6 +14,8 @@ interface ToolbarProps {
   sortOrder: SortOrder;
   onSortOrderChange: (value: SortOrder) => void;
   resultCount: number;
+  showSerialDevOnly: boolean;
+  onSerialDevOnlyChange: (value: boolean) => void;
 }
 
 export function Toolbar({
@@ -24,6 +26,8 @@ export function Toolbar({
   sortOrder,
   onSortOrderChange,
   resultCount,
+  showSerialDevOnly,
+  onSerialDevOnlyChange,
 }: ToolbarProps) {
   const { t } = useLanguage();
 
@@ -42,6 +46,17 @@ export function Toolbar({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => onSerialDevOnlyChange(!showSerialDevOnly)}
+          className={`rounded-md border px-3 py-2 font-mono text-xs transition-colors ${
+            showSerialDevOnly
+              ? "border-bear bg-bear/10 text-bear"
+              : "border-line bg-panel text-muted hover:border-bear hover:text-bear"
+          }`}
+          title="Show only tokens from wallets that have launched multiple tokens"
+        >
+          ⚠ {t.serialDevFilter}
+        </button>
         <select
           value={sortKey}
           onChange={(e) => onSortKeyChange(e.target.value as SortKey)}
