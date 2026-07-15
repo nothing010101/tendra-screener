@@ -16,6 +16,7 @@ export default function HomePage() {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("marketCap");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const [launchCounts, setLaunchCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -40,6 +41,18 @@ export default function HomePage() {
         if (!cancelled) {
           setItems(all);
           setStatus("ready");
+        }
+
+        // Phase 3: dev-wallet tracking — batched lookup of how many tokens
+        // each creator in this page has launched (per our recorded history).
+        const creators = Array.from(new Set(all.map((item) => item.creator)));
+        if (creators.length > 0) {
+          fetch(`/api/wallet/launch-counts?creators=${creators.join(",")}`)
+            .then((r) => r.json())
+            .then((counts) => {
+              if (!cancelled) setLaunchCounts(counts ?? {});
+            })
+            .catch((err) => console.error("[launch-counts]", err));
         }
       } catch (err) {
         console.error(err);
@@ -126,7 +139,9 @@ export default function HomePage() {
               {t.empty}
             </div>
           )}
-          {status === "ready" && filtered.length > 0 && <TokenTable items={filtered} />}
+          {status === "ready" && filtered.length > 0 && (
+            <TokenTable items={filtered} launchCounts={launchCounts} />
+          )}
         </div>
 
         <footer className="mt-10 border-t border-line pt-5 text-center font-mono text-[11px] text-muted">

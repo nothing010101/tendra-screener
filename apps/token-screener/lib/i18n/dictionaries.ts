@@ -49,6 +49,15 @@ export interface Dictionary {
     notFound: string;
     holdersNote: string;
   };
+  devWallet: {
+    tableBadge: string;
+    tableBadgeTooltip: string;
+    warningTitle: string;
+    warningBody: string;
+    otherLaunchesTitle: string;
+    deadBadge: string;
+    viewToken: string;
+  };
 }
 
 export const dictionaries: Record<Locale, Dictionary> = {
@@ -101,6 +110,15 @@ export const dictionaries: Record<Locale, Dictionary> = {
       notFound: "Token not found.",
       holdersNote: "Holder count isn't available yet for this chain.",
     },
+    devWallet: {
+      tableBadge: "Serial dev",
+      tableBadgeTooltip: "This wallet has launched {count} tokens on Robinhood Chain",
+      warningTitle: "Serial dev wallet",
+      warningBody: "This creator has launched {count} other token(s) on Robinhood Chain.",
+      otherLaunchesTitle: "Other tokens by this creator",
+      deadBadge: "Dead",
+      viewToken: "View",
+    },
   },
   zh: {
     brand: "Robinhood Chain 筛选器",
@@ -151,6 +169,15 @@ export const dictionaries: Record<Locale, Dictionary> = {
       notFound: "未找到该代币。",
       holdersNote: "该链的持有人数暂不可用。",
     },
+    devWallet: {
+      tableBadge: "连续发币",
+      tableBadgeTooltip: "该钱包已在 Robinhood Chain 上发行 {count} 个代币",
+      warningTitle: "连续发币钱包",
+      warningBody: "该创建者已在 Robinhood Chain 上发行了 {count} 个其他代币。",
+      otherLaunchesTitle: "该创建者的其他代币",
+      deadBadge: "已死亡",
+      viewToken: "查看",
+    },
   },
   de: {
     brand: "Robinhood Chain Screener",
@@ -200,6 +227,15 @@ export const dictionaries: Record<Locale, Dictionary> = {
       side: { buy: "Kauf", sell: "Verkauf" },
       notFound: "Token nicht gefunden.",
       holdersNote: "Die Halterzahl ist für diese Chain noch nicht verfügbar.",
+    },
+    devWallet: {
+      tableBadge: "Serien-Dev",
+      tableBadgeTooltip: "Dieses Wallet hat {count} Token auf der Robinhood Chain gestartet",
+      warningTitle: "Serien-Dev-Wallet",
+      warningBody: "Dieser Ersteller hat {count} weitere Token auf der Robinhood Chain gestartet.",
+      otherLaunchesTitle: "Weitere Token dieses Erstellers",
+      deadBadge: "Tot",
+      viewToken: "Ansehen",
     },
   },
 };

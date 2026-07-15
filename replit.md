@@ -23,7 +23,12 @@ A token screener for tokens launched on [ape.store](https://ape.store) on **Robi
 - `apps/token-screener/app/api/tokens/route.ts` — server proxy to ape.store's token list endpoint
 - `apps/token-screener/lib/apestore.ts` — all ape.store API calls + response types, centralized here
 - `apps/token-screener/lib/i18n/` — EN/ID dictionaries + language context (localStorage-persisted)
-- `apps/token-screener/supabase/schema.sql` — Phase 3-5 tables (`wallet_launches`, `wallet_transfers`, `bundle_flags`); not yet applied to any Supabase project
+- `apps/token-screener/supabase/schema.sql` — Phase 3-5 tables (`wallet_launches`, `wallet_transfers`, `bundle_flags`); applied to the Supabase project
+- `apps/token-screener/lib/supabase.ts` — server-only Supabase admin client (service-role key)
+- `apps/token-screener/lib/walletLaunches.ts` — Phase 3 dev-wallet tracking: record + query launch history
+- `apps/token-screener/app/api/wallet/[address]/launches/route.ts` — all recorded launches for one creator
+- `apps/token-screener/app/api/wallet/launch-counts/route.ts` — batched launch counts for a set of creators
+- `apps/token-screener/components/DevWalletWarning.tsx` — detail-page warning banner listing a creator's other tokens
 
 ## Architecture decisions
 
@@ -36,7 +41,7 @@ A token screener for tokens launched on [ape.store](https://ape.store) on **Robi
 
 - Phase 1 (done): live screener list — search by name/symbol, sort by market cap/volume/name/newest, 20s auto-refresh, EN/ID language switcher, mobile-responsive dark "trading terminal" UI.
 - Phase 2 (done): token detail page (`/token/[chain]/[address]`) with 20s polling auto-refresh, market cap/liquidity/king-progress/ape-progress stats, and a recent-trades table (buy/sell, wallet, amount, time, tx link).
-- Phase 3 (planned): dev-wallet tracking — warn when a token's creator has launched other tokens (`wallet_launches` table).
+- Phase 3 (done): dev-wallet tracking — every ape.store fetch upserts into `wallet_launches`; the screener table flags "serial dev" creators (⚠ badge) via a batched count lookup, and the token detail page shows a warning banner listing the creator's other tokens on Robinhood Chain.
 - Phase 4 (planned): wallet funding trace via Alchemy RPC (`wallet_transfers` table).
 - Phase 5 (planned): bundle-wallet heuristic detection, shown as an indication not a fact (`bundle_flags` table).
 
@@ -52,6 +57,7 @@ A token screener for tokens launched on [ape.store](https://ape.store) on **Robi
 - **This app cannot be previewed inside Replit's UI.** This workspace's preview pane/deploy only supports registered "artifact" types (`react-vite`, `expo`, `slides`, `video-js`, `openscad`); Next.js isn't one of them. The dev server runs fine as a plain `configureWorkflow` process on port 5000, but hitting the public Replit dev domain returns "no previewable artifacts" (confirmed via test). Verify changes with `curl http://localhost:5000` from the shell, not with the Screenshot tool.
 - ape.store's `volumeStat` list field is an object (`{ mCap, transactions, volume, volumeUSD }`), not a plain number — use `.volumeUSD`.
 - Supabase schema (`supabase/schema.sql`) must be run manually in the Supabase SQL editor; there's no service-role/REST path to execute DDL from this repo.
+- `wallet_launches` is populated passively (best-effort upsert on every ape.store list/detail fetch), not backfilled — the "serial dev" count is a lower bound based on tokens we've actually observed, not full on-chain history.
 
 ## Pointers
 

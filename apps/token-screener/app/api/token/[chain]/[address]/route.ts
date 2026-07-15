@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchTokenDetail } from "@/lib/apestore";
+import { recordTokenLaunches } from "@/lib/walletLaunches";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,11 @@ export async function GET(
 
   try {
     const data = await fetchTokenDetail(chain, params.address);
+    // Best-effort: record this launch too, in case it's a dead/delisted token
+    // missing from the live list bucket.
+    recordTokenLaunches([data.token]).catch((err) =>
+      console.error("[/api/token/:chain/:address] recordTokenLaunches", err),
+    );
     return NextResponse.json(data);
   } catch (err) {
     console.error("[/api/token/:chain/:address]", err);

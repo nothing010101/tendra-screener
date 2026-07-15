@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchTokenList, ROBINHOOD_CHAIN_ID } from "@/lib/apestore";
+import { recordTokenLaunches } from "@/lib/walletLaunches";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,8 @@ export async function GET(req: NextRequest) {
 
   try {
     const data = await fetchTokenList({ page, search, chain: ROBINHOOD_CHAIN_ID });
+    // Best-effort, non-blocking: build up dev-wallet launch history for Phase 3.
+    recordTokenLaunches(data.items).catch((err) => console.error("[/api/tokens] recordTokenLaunches", err));
     return NextResponse.json(data);
   } catch (err) {
     console.error("[/api/tokens]", err);

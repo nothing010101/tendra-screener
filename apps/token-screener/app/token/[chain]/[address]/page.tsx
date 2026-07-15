@@ -7,7 +7,9 @@ import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { formatUsd, formatRelativeTime, shortenAddress } from "@/lib/format";
 import { resolveIpfsUri } from "@/lib/ipfs";
 import { TradesTable } from "@/components/TradesTable";
+import { DevWalletWarning } from "@/components/DevWalletWarning";
 import type { ApeStoreTokenDetailResponse, ApeStoreTrade } from "@/lib/apestore";
+import type { WalletLaunch } from "@/lib/walletLaunches";
 
 const POLL_MS = 20_000;
 
@@ -16,6 +18,7 @@ export default function TokenDetailPage() {
   const params = useParams<{ chain: string; address: string }>();
   const [detail, setDetail] = useState<ApeStoreTokenDetailResponse | null>(null);
   const [trades, setTrades] = useState<ApeStoreTrade[]>([]);
+  const [otherLaunches, setOtherLaunches] = useState<WalletLaunch[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error" | "not_found">("loading");
   const [tradesStatus, setTradesStatus] = useState<"loading" | "ready" | "error">("loading");
 
@@ -70,6 +73,30 @@ export default function TokenDetailPage() {
       clearInterval(interval);
     };
   }, [params.chain, params.address]);
+
+  // Phase 3: dev-wallet tracking — once we know the creator, look up other
+  // tokens they've launched on this chain (excluding the one we're viewing).
+  useEffect(() => {
+    let cancelled = false;
+    const creator = detail?.token.creator;
+    if (!creator) return;
+
+    fetch(`/api/wallet/${creator}/launches`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        const currentAddress = params.address?.toLowerCase();
+        const launches = (data.launches ?? []).filter(
+          (l: WalletLaunch) => l.token_address.toLowerCase() !== currentAddress,
+        );
+        setOtherLaunches(launches);
+      })
+      .catch((err) => console.error("[dev-wallet]", err));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [detail?.token.creator, params.address]);
 
   if (status === "loading") {
     return (
@@ -153,6 +180,8 @@ export default function TokenDetailPage() {
           </span>
         </div>
         <p className="mt-1 font-mono text-[11px] text-muted/70">{t.detail.holdersNote}</p>
+
+        <DevWalletWarning chain={token.chain} creator={token.creator} otherLaunches={otherLaunches} />
 
         <section className="mt-8">
           <h2 className="mb-3 font-display text-lg font-semibold text-ink">{t.detail.tradesTitle}</h2>

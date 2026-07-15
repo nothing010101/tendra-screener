@@ -33,7 +33,13 @@ function TokenLogo({ item }: { item: ApeStoreTokenListItem }) {
   );
 }
 
-export function TokenTable({ items }: { items: ApeStoreTokenListItem[] }) {
+export function TokenTable({
+  items,
+  launchCounts = {},
+}: {
+  items: ApeStoreTokenListItem[];
+  launchCounts?: Record<string, number>;
+}) {
   const { t } = useLanguage();
   const router = useRouter();
 
@@ -68,6 +74,17 @@ export function TokenTable({ items }: { items: ApeStoreTokenListItem[] }) {
                       {item.isKing && (
                         <span className="rounded-sm bg-acid/15 px-1.5 py-0.5 text-[10px] font-mono text-acid">
                           KING
+                        </span>
+                      )}
+                      {(launchCounts[item.creator.toLowerCase()] ?? 0) > 1 && (
+                        <span
+                          title={t.devWallet.tableBadgeTooltip.replace(
+                            "{count}",
+                            String(launchCounts[item.creator.toLowerCase()]),
+                          )}
+                          className="rounded-sm bg-bear/15 px-1.5 py-0.5 text-[10px] font-mono text-bear"
+                        >
+                          ⚠ {t.devWallet.tableBadge}
                         </span>
                       )}
                     </div>
