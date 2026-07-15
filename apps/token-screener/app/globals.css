@@ -3,19 +3,19 @@
 @tailwind utilities;
 
 :root {
-  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Archivo Black", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
 html,
 body {
-  background-color: #0a0d0a;
-  color: #e9f2df;
+  background-color: #0B0D08;
+  color: #F3EED9;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #2a3524 #0a0d0a;
+  scrollbar-color: #2A2717 #0B0D08;
 }
 
 ::-webkit-scrollbar {
@@ -23,10 +23,10 @@ body {
   width: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #0a0d0a;
+  background: #0B0D08;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a3524;
+  background: #2A2717;
   border-radius: 4px;
 }
 

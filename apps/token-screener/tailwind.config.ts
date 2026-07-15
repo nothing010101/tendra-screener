@@ -5,21 +5,21 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        canvas: "#0a0d0a",
-        panel: "#11150f",
-        line: "#1f2a1c",
-        acid: "#c8ff4d",
-        acid2: "#8bd63a",
+        canvas: "#0B0D08",
+        panel: "#15130C",
+        line: "#2A2717",
+        acid: "#FFC72C",
+        acid2: "#FF9F1C",
         bear: "#ff5d5d",
-        ink: "#e9f2df",
-        muted: "#8b9a83",
+        ink: "#F3EED9",
+        muted: "#A8A290",
       },
       fontFamily: {
         display: ["var(--font-display)", "sans-serif"],
         mono: ["var(--font-mono)", "monospace"],
       },
       backgroundImage: {
-        grid: "linear-gradient(rgba(200,255,77,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(200,255,77,0.05) 1px, transparent 1px)",
+        grid: "linear-gradient(rgba(255,199,44,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,199,44,0.05) 1px, transparent 1px)",
       },
     },
   },

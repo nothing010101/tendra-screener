@@ -71,7 +71,7 @@ export interface Dictionary {
 
 export const dictionaries: Record<Locale, Dictionary> = {
   en: {
-    brand: "Robinhood Chain Screener",
+    brand: "ApeScreener",
     tagline: "Live token board for ape.store on Robinhood Chain",
     searchPlaceholder: "Search name or symbol\u2026",
     columns: {
@@ -139,7 +139,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     },
   },
   zh: {
-    brand: "Robinhood Chain 筛选器",
+    brand: "ApeScreener",
     tagline: "Robinhood Chain 上 ape.store 代币实时看板",
     searchPlaceholder: "搜索名称或代号\u2026",
     columns: {
@@ -207,7 +207,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     },
   },
   de: {
-    brand: "Robinhood Chain Screener",
+    brand: "ApeScreener",
     tagline: "Live-Token-Übersicht für ape.store auf der Robinhood Chain",
     searchPlaceholder: "Name oder Symbol suchen\u2026",
     columns: {

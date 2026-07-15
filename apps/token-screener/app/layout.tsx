@@ -3,8 +3,19 @@ import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Robinhood Chain Screener — ape.store",
-  description: "Live token screener for ape.store launches on Robinhood Chain.",
+  title: "ApeScreener — live tokens on Robinhood Chain",
+  description: "ApeScreener is a live token screener for ape.store launches on Robinhood Chain.",
+  openGraph: {
+    title: "ApeScreener — live tokens on Robinhood Chain",
+    description: "ApeScreener is a live token screener for ape.store launches on Robinhood Chain.",
+    siteName: "ApeScreener",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "ApeScreener — live tokens on Robinhood Chain",
+    description: "ApeScreener is a live token screener for ape.store launches on Robinhood Chain.",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -14,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
           rel="stylesheet"
         />
       </head>
