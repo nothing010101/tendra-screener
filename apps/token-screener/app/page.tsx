@@ -85,12 +85,14 @@ export default function HomePage() {
 
     setCaState({ status: "loading" });
     try {
-      const res = await fetch(`/api/token/${encodeURIComponent(address)}`);
+      const res = await fetch(`/api/token/4663/${encodeURIComponent(address)}`);
       if (res.status === 404) { setCaState({ status: "not-found" }); return; }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (!data.token) { setCaState({ status: "not-found" }); return; }
-      setCaState({ status: "found", token: data.token });
+      // Merge top-level marketCap (most accurate) into token object
+      const token = { ...data.token, marketCap: data.marketCap ?? data.token.marketCap };
+      setCaState({ status: "found", token });
     } catch {
       setCaState({ status: "not-found" });
     }
