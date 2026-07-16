@@ -122,16 +122,36 @@ export function fetchTokenList(params: {
   page: number;
   search?: string;
   chain?: number;
+  sort?: string;   // ape.store sort key: "0"=default, "1"=new, "2"=mc, "3"=volume
+  order?: string;  // "0"=desc, "1"=asc
 }): Promise<ApeStoreTokenListResponse> {
   const search = new URLSearchParams({
     page: String(params.page),
-    sort: "0",
-    order: "0",
+    sort: params.sort ?? "0",
+    order: params.order ?? "0",
     filter: String(APESTORE_LIVE_FILTER),
     search: params.search ?? "",
     chain: String(params.chain ?? ROBINHOOD_CHAIN_ID),
   });
   return apeFetch(`/api/tokens?${search.toString()}`, 15);
+}
+
+// Fetch N pages from ape.store in parallel and return the combined list.
+// Used by the Next.js API route to get live data without going through Supabase.
+export async function fetchLiveTokenPages(
+  chain: number,
+  maxPages: number,
+  sort = "0",
+): Promise<ApeStoreTokenListItem[]> {
+  const pageNums = Array.from({ length: maxPages }, (_, i) => i + 1);
+  const results = await Promise.all(
+    pageNums.map((page) =>
+      fetchTokenList({ page, chain, sort })
+        .then((r) => r.items)
+        .catch(() => [] as ApeStoreTokenListItem[]),
+    ),
+  );
+  return results.flat();
 }
 
 export function fetchTokenDetail(chain: number, address: string): Promise<ApeStoreTokenDetailResponse> {
