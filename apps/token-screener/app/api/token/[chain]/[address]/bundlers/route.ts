@@ -82,8 +82,10 @@ export async function GET(
         buyers.map(async (buyer) => {
           const balance  = await getTokenBalance(address, buyer).catch(() => -1);
           const status: "holding" | "sold" = balance <= 0 ? "sold" : "holding";
+          // balance is already in whole-token units (raw / 10^18).
+          // Divide by 1B supply to get percentage. Use toFixed(4) precision.
           const holdPct  = balance > 0 ? (balance / TOTAL_SUPPLY) * 100 : 0;
-          return { address: buyer, status, holdPct };
+          return { address: buyer, status, holdPct: parseFloat(holdPct.toFixed(4)) };
         }),
       );
 
