@@ -32,7 +32,9 @@ export function derivePriceFromMarketCap(marketCap: number | null | undefined): 
 
 export function formatRelativeTime(iso: string | null | undefined): string {
   if (!iso) return "—";
-  const date = new Date(iso);
+  // ape.store returns timestamps without timezone suffix — treat as UTC
+  const normalized = /[Z+\-]\d*$/.test(iso) ? iso : iso + "Z";
+  const date = new Date(normalized);
   const diffMs = Date.now() - date.getTime();
   const mins = Math.floor(diffMs / 60000);
   if (mins < 1) return "now";

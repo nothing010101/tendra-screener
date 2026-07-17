@@ -30,7 +30,8 @@ function esc(s: string | null | undefined): string {
 
 function timeAgo(iso: string | null | undefined): string {
   if (!iso) return "—";
-  const diff = Date.now() - new Date(iso).getTime();
+  const normalized = /[Z+\-]\d*$/.test(iso) ? iso : iso + "Z";
+  const diff = Date.now() - new Date(normalized).getTime();
   const m = Math.floor(diff / 60_000);
   if (m < 60)  return `${m}m ago`;
   const h = Math.floor(m / 60);
