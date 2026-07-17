@@ -73,7 +73,7 @@ async function editOrReply(
 
 const HELP = `🦍 *ApeScreener Bot*
 
-Scan tokens on Robinhood Chain \\(ape\\.store\\)
+Real\\-time token scanner for ape\\.store on Robinhood Chain\\.
 
 *Commands:*
 /scan \\<CA\\> — Token info \\+ top holders
@@ -81,7 +81,10 @@ Scan tokens on Robinhood Chain \\(ape\\.store\\)
 /help — Show this message
 
 *Example:*
-\`/scan 0x0ba813c7a084cb68aeb1b0f633821a112ab90629\``;
+\`/scan 0x0ba813c7a084cb68aeb1b0f633821a112ab90629\`
+
+🌐 [app\\.apescreener\\.store](https://app.apescreener.store)
+💬 [t\\.me/apescreenerstore](https://t.me/apescreenerstore)`;
 
 bot.start((ctx) => ctx.replyWithMarkdownV2(HELP));
 bot.help((ctx)  => ctx.replyWithMarkdownV2(HELP));
