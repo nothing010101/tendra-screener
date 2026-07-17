@@ -76,6 +76,13 @@ export function TokenTable({
                           KING
                         </span>
                       )}
+                    </div>
+                    <div className="font-mono text-xs text-muted">
+                      {item.symbol} · {shortenAddress(item.address)}
+                    </div>
+                    {/* Creator address + dev badge */}
+                    <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[10px] text-muted/60">
+                      <span>by {shortenAddress(item.creator)}</span>
                       {(launchCounts[item.creator.toLowerCase()] ?? 0) > 1 && (
                         <span
                           title={t.devWallet.tableBadgeTooltip.replace(
@@ -84,12 +91,9 @@ export function TokenTable({
                           )}
                           className="rounded-sm bg-bear/15 px-1.5 py-0.5 text-[10px] font-mono text-bear"
                         >
-                          ⚠ {t.devWallet.tableBadge}
+                          ⚠ {t.devWallet.tableBadge} ×{launchCounts[item.creator.toLowerCase()]}
                         </span>
                       )}
-                    </div>
-                    <div className="font-mono text-xs text-muted">
-                      {item.symbol} · {shortenAddress(item.address)}
                     </div>
                   </div>
                 </div>
