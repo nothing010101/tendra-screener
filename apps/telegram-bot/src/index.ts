@@ -3,32 +3,48 @@ import { Telegraf } from "telegraf";
 const TOKEN = process.env.TELEGRAM_TOKEN;
 if (!TOKEN) throw new Error("TELEGRAM_TOKEN not set");
 
-const API = "https://app.apescreener.store";
-const CHAIN = 4663;
+const API        = "https://app.apescreener.store";
 const BLOCKSCOUT = "https://robinhoodchain.blockscout.com";
+const APE_STORE  = "https://ape.store/robinhood";
+const CHAIN      = 4663;
 
 const bot = new Telegraf(TOKEN);
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// ── helpers ───────────────────────────────────────────────────────────────────
 
-function short(addr: string) {
+/** Shorten 0xABCD...1234 */
+function short(addr: string): string {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
-function fmt(n: number, decimals = 2) {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+/** Format USD number */
+function fmtUsd(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
   if (n >= 1_000)     return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n.toFixed(decimals)}`;
+  return `$${n.toFixed(2)}`;
 }
 
-function esc(s: string) {
-  // Escape MarkdownV2 special chars
+/** Escape MarkdownV2 special chars — handles undefined/null safely */
+function esc(s: string | null | undefined): string {
+  if (!s) return "";
   return s.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
 }
 
-async function fetchJson<T>(url: string): Promise<T | null> {
+/** Time ago from ISO string */
+function timeAgo(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60_000);
+  if (m < 60)  return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24)  return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+/** Fetch JSON with timeout, returns null on any error */
+async function fetchJson<T>(url: string, timeoutMs = 15_000): Promise<T | null> {
   try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(25_000) });
+    const r = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
     if (!r.ok) return null;
     return r.json() as Promise<T>;
   } catch {
@@ -40,142 +56,118 @@ async function fetchJson<T>(url: string): Promise<T | null> {
 
 const HELP = `🦍 *ApeScreener Bot*
 
-Scan token di Robinhood Chain \\(ape\\.store\\)
+Scan tokens on Robinhood Chain \\(ape\\.store\\)
 
 *Commands:*
-/scan \\<CA\\> — Scan token by contract address
-/help — Tampilkan pesan ini
+/scan \\<CA\\> — Scan a token by contract address
+/help — Show this message
 
-*Contoh:*
+*Example:*
 \`/scan 0x0ba813c7a084cb68aeb1b0f633821a112ab90629\``;
 
 bot.start((ctx) => ctx.replyWithMarkdownV2(HELP));
-bot.help((ctx) => ctx.replyWithMarkdownV2(HELP));
+bot.help((ctx)  => ctx.replyWithMarkdownV2(HELP));
 
 // ── /scan ─────────────────────────────────────────────────────────────────────
 
 bot.command("scan", async (ctx) => {
   const parts = ctx.message.text.trim().split(/\s+/);
-  const ca = parts[1]?.toLowerCase();
+  const ca    = parts[1]?.toLowerCase();
 
   if (!ca || !/^0x[0-9a-f]{40}$/i.test(ca)) {
-    return ctx.reply("❌ Masukkan contract address yang valid.\n\nContoh: /scan 0xAbCd...");
+    return ctx.reply(
+      "❌ Please provide a valid contract address.\n\nExample:\n/scan 0xAbCd...",
+    );
   }
 
   const loading = await ctx.reply("🔍 Scanning…");
 
-  // Fetch semua data paralel
-  const [detail, bundlers, funding] = await Promise.all([
+  // Fetch token detail + funding trace in parallel
+  const [detail, funding] = await Promise.all([
     fetchJson<any>(`${API}/api/token/${CHAIN}/${ca}`),
-    fetchJson<any>(`${API}/api/token/${CHAIN}/${ca}/bundlers`),
-    fetchJson<any>(`${API}/api/wallet/${ca}/funding`),  // funding for the CA itself (rare)
+    fetchJson<any>(`${API}/api/wallet/${ca}/funding`, 8_000),
   ]);
 
-  if (!detail || detail.error) {
-    await ctx.telegram.deleteMessage(ctx.chat.id, loading.message_id);
-    return ctx.reply("❌ Token tidak ditemukan. Pastikan CA benar dan token ada di ape.store Robinhood Chain.");
+  // Delete "Scanning…" message
+  await ctx.telegram.deleteMessage(ctx.chat.id, loading.message_id).catch(() => {});
+
+  if (!detail || detail.error || !detail.token) {
+    return ctx.reply(
+      "❌ Token not found\\. Make sure the CA is correct and the token exists on ape\\.store Robinhood Chain\\.",
+      { parse_mode: "MarkdownV2" },
+    );
   }
 
-  const token = detail;
+  const t   = detail.token;
+  const mc  = detail.marketCap ?? t.marketCap ?? 0;
 
-  // ── Baris 1: nama + symbol ──
-  const nameLine = `🪙 *${esc(token.name)}* \\($${esc(token.symbol)}\\)`;
+  // ── Header ──
+  const header = `🪙 *${esc(t.name)}* \\($${esc(t.symbol)}\\)`;
 
   // ── Stats ──
-  const mcap    = token.marketCap    ? fmt(token.marketCap)    : "—";
-  const holders = token.holderCount  != null ? token.holderCount.toLocaleString() : "—";
-  const created = token.createDate   ? timeAgo(token.createDate) : "—";
-  const dex     = token.dexPaid      ? "✅ Paid" : "❌ Not paid";
-
-  const statsLines = [
-    `📊 Market Cap: *${esc(mcap)}*`,
-    `👥 Holders: *${esc(holders)}*`,
-    `🕐 Created: *${esc(created)}*`,
-    `💳 DEX: ${dex}`,
+  const stats = [
+    `📊 Market Cap: *${esc(fmtUsd(mc))}*`,
+    `👥 Holders: *${esc(String(t.holderCount ?? "—"))}*`,
+    `🕐 Created: *${esc(timeAgo(t.createDate))}*`,
+    `💳 DEX Fee: ${detail.dexPaid ? "✅ Paid" : "❌ Not paid"}`,
   ].join("\n");
 
   // ── Creator ──
-  const creatorAddr = token.creator ?? "";
-  const launchCount: number = bundlers?.creatorLaunchCount ?? 0;
-  const devTag = launchCount > 1
+  const creator   = t.creator ?? "";
+  const launchCount: number = detail.creatorLaunchCount ?? 0;
+  const devBadge  = launchCount > 1
     ? ` ⚠️ *DEV ×${launchCount}*`
     : "";
-  const creatorLine = creatorAddr
-    ? `👤 Creator: [${esc(short(creatorAddr))}](${BLOCKSCOUT}/address/${creatorAddr})${devTag}`
+  const creatorLine = creator
+    ? `👤 Creator: [${esc(short(creator))}](${BLOCKSCOUT}/address/${creator})${devBadge}`
     : "";
 
-  // ── Bundle analysis ──
-  let bundleLine = "📦 Bundle: _Tidak tersedia_";
-  if (bundlers && !bundlers.error) {
-    const visible    = (bundlers.bundles ?? []).filter((b: any) => !b.suppressed);
-    const suppressed = bundlers.suppressedCount ?? 0;
-    const earlyCount = bundlers.earlyBuyerCount ?? 0;
-
-    if (visible.length === 0) {
-      bundleLine = `📦 Bundle: ✅ Tidak ada bundle \\(${earlyCount} early buyers, ${suppressed} relay hidden\\)`;
-    } else {
-      const grouped = visible.map((b: any) =>
-        `  • ${esc(short(b.funder))} → ${b.wallets?.length ?? 0} wallets \\(${b.holdPct?.toFixed(2) ?? "?"}%\\)`
-      ).join("\n");
-      bundleLine = `📦 Bundle: ⚠️ *${visible.length} grup terdeteksi*\n${grouped}`;
-    }
-  }
-
-  // ── Funding trace of creator wallet ──
+  // ── Funding trace (creator wallet) ──
   let fundingLine = "";
   if (funding?.trace && !funding.funderSuppressed) {
-    const f = funding.trace;
+    const f      = funding.trace;
     const funder = f.from_address ?? "";
-    const amt    = f.amount != null ? `${Number(f.amount).toFixed(4)} ETH` : "";
+    const amt    = f.amount != null
+      ? `${Number(f.amount).toFixed(4)} ETH`
+      : "";
     const fanOut = funding.funderFanOut ?? 0;
-    const fanTag = fanOut > 1 ? ` \\(funded *${fanOut}* dev wallets\\)` : "";
-    fundingLine = `💸 Funding: [${esc(short(funder))}](${BLOCKSCOUT}/address/${funder}) ${esc(amt)}${fanTag}`;
+    const fanTag = fanOut > 1
+      ? ` \\(funded *${fanOut}* dev wallets\\)`
+      : "";
+    fundingLine = `💸 Funded by: [${esc(short(funder))}](${BLOCKSCOUT}/address/${funder}) ${esc(amt)}${fanTag}`;
   }
 
-  // ── Links ──
+  // ── Token links ──
   const links = [
     `[Screener](${API}/token/${CHAIN}/${ca})`,
     `[Blockscout](${BLOCKSCOUT}/token/${ca})`,
-    `[ape\\.store](https://ape.store/robinhood/${ca})`,
+    `[ape\\.store](${APE_STORE}/${ca})`,
   ].join(" \\| ");
 
-  // ── Gabungkan ──
+  // ── Assemble ──
   const lines = [
-    nameLine,
+    header,
     "",
-    statsLines,
+    stats,
     "",
     creatorLine,
-    bundleLine,
     fundingLine,
     "",
     links,
-  ].filter((l) => l !== undefined && l !== "");
+  ].filter(Boolean);
 
-  const text = lines.join("\n");
-
-  await ctx.telegram.deleteMessage(ctx.chat.id, loading.message_id);
-  await ctx.replyWithMarkdownV2(text, { disable_web_page_preview: true } as any);
+  await ctx.replyWithMarkdownV2(lines.join("\n"), {
+    disable_web_page_preview: true,
+  } as any);
 });
 
-// ── catch-all ──────────────────────────────────────────────────────────────────
+// ── catch-all ─────────────────────────────────────────────────────────────────
 
-bot.on("text", (ctx) => {
-  ctx.reply("Gunakan /scan <CA> untuk scan token, atau /help untuk bantuan.");
-});
+bot.on("text", (ctx) =>
+  ctx.reply("Use /scan <CA> to scan a token, or /help for usage."),
+);
 
-// ── timeAgo helper ─────────────────────────────────────────────────────────────
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60_000);
-  if (m < 60)  return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24)  return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
-
-// ── launch ─────────────────────────────────────────────────────────────────────
+// ── launch ────────────────────────────────────────────────────────────────────
 
 bot.launch({ dropPendingUpdates: true });
 console.log("🤖 ApeScreener bot running…");
