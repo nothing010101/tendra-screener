@@ -3,6 +3,33 @@ import { Telegraf } from "telegraf";
 const TOKEN = process.env.TELEGRAM_TOKEN;
 if (!TOKEN) throw new Error("TELEGRAM_TOKEN not set");
 
+const SUPABASE_URL  = process.env.SUPABASE_URL_PROJECT ?? "";
+const SUPABASE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+
+// ── user tracking ─────────────────────────────────────────────────────────────
+
+async function trackUser(ctx: any): Promise<void> {
+  try {
+    const from = ctx.message?.from ?? ctx.from;
+    if (!from || !SUPABASE_URL || !SUPABASE_KEY) return;
+    await fetch(`${SUPABASE_URL}/rest/v1/rpc/upsert_bot_user`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_KEY,
+        "Authorization": `Bearer ${SUPABASE_KEY}`,
+      },
+      body: JSON.stringify({
+        p_user_id:    from.id,
+        p_username:   from.username   ?? null,
+        p_first_name: from.first_name ?? null,
+      }),
+    });
+  } catch {
+    // fire-and-forget, never block the command
+  }
+}
+
 const API        = "https://app.apescreener.store";
 const BLOCKSCOUT = "https://robinhoodchain.blockscout.com";
 const APE_STORE  = "https://ape.store/robinhood";
@@ -87,12 +114,13 @@ Real\\-time token scanner for ape\\.store on Robinhood Chain\\.
 🌐 [app\\.apescreener\\.store](https://app.apescreener.store)
 💬 [t\\.me/apescreenerstore](https://t.me/apescreenerstore)`;
 
-bot.start((ctx) => ctx.replyWithMarkdownV2(HELP));
-bot.help((ctx)  => ctx.replyWithMarkdownV2(HELP));
+bot.start(async (ctx) => { trackUser(ctx); return ctx.replyWithMarkdownV2(HELP); });
+bot.help(async (ctx)  => { trackUser(ctx); return ctx.replyWithMarkdownV2(HELP); });
 
 // ── /scan ─────────────────────────────────────────────────────────────────────
 
 bot.command("scan", async (ctx) => {
+  trackUser(ctx);
   const ca = ctx.message.text.trim().split(/\s+/)[1]?.toLowerCase();
 
   if (!ca || !isValidCa(ca)) {
@@ -185,6 +213,7 @@ bot.command("scan", async (ctx) => {
 // ── /bundle ───────────────────────────────────────────────────────────────────
 
 bot.command("bundle", async (ctx) => {
+  trackUser(ctx);
   const ca = ctx.message.text.trim().split(/\s+/)[1]?.toLowerCase();
 
   if (!ca || !isValidCa(ca)) {
