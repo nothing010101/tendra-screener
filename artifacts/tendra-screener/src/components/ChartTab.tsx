@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { createChart, type IChartApi, type ISeriesApi } from "lightweight-charts";
+import { createChart, CandlestickSeries, type IChartApi, type ISeriesApi } from "lightweight-charts";
 import { fetchAllTrades, fetchTrades, type TendraTrade } from "@/lib/tendra";
 import { tradesToCandles, fillCandles, type TimeFrame } from "@/lib/candles";
 import { formatPrice, formatUSDT } from "@/lib/format";
@@ -98,7 +98,7 @@ export function ChartTab({ tokenAddress }: ChartTabProps) {
       },
     });
 
-    const candlestickSeries = chart.addSeries("Candlestick", {
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: "#22c55e",
       downColor: "#ef4444",
       borderUpColor: "#22c55e",
