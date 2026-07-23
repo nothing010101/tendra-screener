@@ -3,7 +3,6 @@ import { useParams, Link } from "wouter";
 import { Avatar } from "@/components/Avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChartTab } from "@/components/ChartTab";
-import { TradesTab } from "@/components/TradesTab";
 import { DevWalletTab } from "@/components/DevWalletTab";
 import { BundleTab } from "@/components/BundleTab";
 import { fetchBoard, type BoardToken } from "@/lib/tendra";
@@ -135,13 +134,6 @@ export default function TokenDetail() {
               Chart
             </TabsTrigger>
             <TabsTrigger
-              value="trades"
-              data-testid="tab-trades"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3"
-            >
-              Trades
-            </TabsTrigger>
-            <TabsTrigger
               value="dev"
               data-testid="tab-dev"
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3"
@@ -164,16 +156,12 @@ export default function TokenDetail() {
             />
           </TabsContent>
 
-          <TabsContent value="trades" className="mt-6">
-            <TradesTab tokenAddress={address} />
-          </TabsContent>
-
           <TabsContent value="dev" className="mt-6">
             <DevWalletTab tokenAddress={address} />
           </TabsContent>
 
           <TabsContent value="bundle" className="mt-6">
-            <BundleTab tokenAddress={address} />
+            <BundleTab />
           </TabsContent>
         </Tabs>
       </main>
