@@ -9,6 +9,15 @@ import { TrendingUp, Activity, Clock } from "lucide-react";
 
 type SortMode = "volume" | "marketcap" | "new";
 
+function applySort(tokens: BoardToken[], sortBy: SortMode): BoardToken[] {
+  return [...tokens].sort((a, b) => {
+    if (sortBy === "volume")    return b.vol24h - a.vol24h;
+    if (sortBy === "marketcap") return b.marketCap - a.marketCap;
+    // "new" — most recently traded first (proxy for newest token)
+    return (b.lastTradeAt ?? 0) - (a.lastTradeAt ?? 0);
+  });
+}
+
 export default function TokenList() {
   const [tokens, setTokens] = useState<BoardToken[]>([]);
   const [sort, setSort] = useState<SortMode>("volume");
@@ -16,14 +25,17 @@ export default function TokenList() {
   const [error, setError] = useState<string | null>(null);
   // Track which addresses we've already enriched to avoid redundant RPC calls
   const enrichedRef = useRef<Map<string, { name: string; symbol: string; marketCap: number; price: number }>>(new Map());
+  // Keep current sort accessible inside async callbacks without stale closure
+  const sortRef = useRef<SortMode>("volume");
 
   const loadTokens = async (sortBy: SortMode) => {
+    sortRef.current = sortBy;
     try {
       setLoading(true);
       const data = await fetchBoard(sortBy);
 
-      // Immediately show board data (with placeholders for name/symbol)
-      setTokens(data);
+      // Immediately show board data sorted correctly
+      setTokens(applySort(data, sortBy));
       setError(null);
       setLoading(false);
 
@@ -39,24 +51,18 @@ export default function TokenList() {
             price: info.price,
           });
         });
-        // Re-merge enriched data into the token list
-        setTokens((prev) =>
-          prev.map((t) => {
-            const e = enrichedRef.current.get(t.address.toLowerCase());
-            if (!e) return t;
-            return { ...t, name: e.name, symbol: e.symbol, marketCap: e.marketCap, price: e.price };
-          })
-        );
-      } else {
-        // All already enriched — just re-apply cached enrichment
-        setTokens((prev) =>
-          prev.map((t) => {
-            const e = enrichedRef.current.get(t.address.toLowerCase());
-            if (!e) return t;
-            return { ...t, name: e.name, symbol: e.symbol, marketCap: e.marketCap, price: e.price };
-          })
-        );
       }
+
+      // Re-merge enriched data and re-sort with current sort mode
+      setTokens((prev) =>
+        applySort(
+          prev.map((t) => {
+            const e = enrichedRef.current.get(t.address.toLowerCase());
+            return e ? { ...t, name: e.name, symbol: e.symbol, marketCap: e.marketCap, price: e.price } : t;
+          }),
+          sortRef.current
+        )
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load tokens");
       setLoading(false);

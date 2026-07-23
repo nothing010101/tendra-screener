@@ -25,10 +25,13 @@ export function formatTokens(value: number): string {
 
 export function formatPrice(value: number): string {
   if (!isFinite(value) || isNaN(value) || value === 0) return "$0.000000";
-  if (value >= 1) return `$${value.toFixed(4)}`;
-  if (value >= 0.01) return `$${value.toFixed(6)}`;
-  if (value >= 0.0001) return `$${value.toFixed(8)}`;
-  return `$${value.toExponential(4)}`;
+  if (value >= 1)         return `$${value.toFixed(4)}`;
+  if (value >= 0.001)     return `$${value.toFixed(6)}`;
+  if (value >= 0.000001)  return `$${value.toFixed(8)}`;
+  if (value >= 0.00000001) return `$${value.toFixed(10)}`;
+  // Below 1e-8 — show fixed with enough decimals, never exponential
+  const s = value.toPrecision(4);
+  return `$${parseFloat(s).toFixed(12)}`;
 }
 
 export function formatPct(value: number | null | undefined): string {

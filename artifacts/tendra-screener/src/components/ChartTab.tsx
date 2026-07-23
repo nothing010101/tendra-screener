@@ -1,9 +1,22 @@
 import { useState, useEffect, useRef } from "react";
 import { createChart, CandlestickSeries, type IChartApi, type ISeriesApi } from "lightweight-charts";
 import { fetchAllTrades, fetchTrades, type TendraTrade } from "@/lib/tendra";
-import { tradesToCandles, fillCandles, type TimeFrame } from "@/lib/candles";
-import { formatPrice, formatUSDT } from "@/lib/format";
+import { tradesToCandles, fillCandles, type Candle, type TimeFrame } from "@/lib/candles";
+import { formatUSDT } from "@/lib/format";
 import { Activity } from "lucide-react";
+
+const SUPPLY = 1_000_000_000;
+
+// Convert price candles → market-cap candles (price × supply)
+function toMcapCandles(candles: Candle[]): Candle[] {
+  return candles.map((c) => ({
+    ...c,
+    open:  c.open  * SUPPLY,
+    high:  c.high  * SUPPLY,
+    low:   c.low   * SUPPLY,
+    close: c.close * SUPPLY,
+  }));
+}
 
 interface ChartTabProps {
   tokenAddress: string;
@@ -14,72 +27,70 @@ export function ChartTab({ tokenAddress }: ChartTabProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [allTrades, setAllTrades] = useState<TendraTrade[]>([]);
-  const [lastPrice, setLastPrice] = useState<number>(0);
   const [marketCap, setMarketCap] = useState<number>(0);
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  // Keep a ref so the poll closure always sees the latest trades
+  const allTradesRef = useRef<TendraTrade[]>([]);
 
-  // Initial load: fetch all trades
+  // Initial load
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const trades = await fetchAllTrades(tokenAddress);
+    setAllTrades([]);
+    allTradesRef.current = [];
+    setMarketCap(0);
+    setLoading(true);
+    setError(null);
+
+    fetchAllTrades(tokenAddress)
+      .then((trades) => {
+        allTradesRef.current = trades;
         setAllTrades(trades);
         if (trades.length > 0) {
           const last = trades[trades.length - 1];
-          setLastPrice(last.price);
-          setMarketCap(last.price * 1_000_000_000);
+          setMarketCap(last.price * SUPPLY);
         }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load trades");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load"))
+      .finally(() => setLoading(false));
   }, [tokenAddress]);
 
-  // Poll for new trades every 5s
+  // Silent poll — append only genuinely new trades (no loading state change)
   useEffect(() => {
-    if (allTrades.length === 0) return;
+    if (loading || error) return;
 
     const poll = async () => {
       try {
-        const recent = await fetchTrades(tokenAddress, { limit: 20 });
+        const recent = await fetchTrades(tokenAddress, {});
         if (recent.length === 0) return;
 
-        const lastExisting = allTrades[allTrades.length - 1];
-        const lastExistingTs = lastExisting.ts; // Unix seconds
+        const current = allTradesRef.current;
+        const latestTs = current.length > 0 ? current[current.length - 1].ts : 0;
+        const newTrades = recent.filter((t) => t.ts > latestTs);
+        if (newTrades.length === 0) return;
 
-        const newTrades = recent.filter((t) => t.ts > lastExistingTs);
-
-        if (newTrades.length > 0) {
-          setAllTrades((prev) => [...prev, ...newTrades]);
-          const last = newTrades[newTrades.length - 1];
-          setLastPrice(last.price);
-          setMarketCap(last.price * 1_000_000_000);
-        }
-      } catch (err) {
-        console.error("Poll error:", err);
+        const merged = [...current, ...newTrades].sort((a, b) => a.ts - b.ts);
+        allTradesRef.current = merged;
+        setAllTrades(merged);
+        const last = newTrades[newTrades.length - 1];
+        setMarketCap(last.price * SUPPLY);
+      } catch {
+        // silent — don't surface poll errors
       }
     };
 
-    const interval = setInterval(poll, 5_000);
-    return () => clearInterval(interval);
-  }, [tokenAddress, allTrades]);
+    const id = setInterval(poll, 5_000);
+    return () => clearInterval(id);
+  }, [tokenAddress, loading, error]);
 
-  // Create chart
+  // Create / recreate chart when data arrives
   useEffect(() => {
     if (!chartContainerRef.current || loading || error) return;
 
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
-      height: 500,
+      height: 480,
       layout: {
         background: { color: "#0a0a0f" },
         textColor: "#9ca3af",
@@ -96,46 +107,54 @@ export function ChartTab({ tokenAddress }: ChartTabProps) {
       rightPriceScale: {
         borderColor: "#1a1a24",
       },
+      localization: {
+        // Format Y-axis labels as compact USD (MC values)
+        priceFormatter: (p: number) =>
+          p >= 1_000_000
+            ? `$${(p / 1_000_000).toFixed(2)}M`
+            : p >= 1_000
+            ? `$${(p / 1_000).toFixed(1)}K`
+            : `$${p.toFixed(2)}`,
+      },
     });
 
-    const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: "#22c55e",
-      downColor: "#ef4444",
-      borderUpColor: "#22c55e",
-      borderDownColor: "#ef4444",
-      wickUpColor: "#22c55e",
-      wickDownColor: "#ef4444",
+    const series = chart.addSeries(CandlestickSeries, {
+      upColor:        "#22c55e",
+      downColor:      "#ef4444",
+      borderUpColor:  "#22c55e",
+      borderDownColor:"#ef4444",
+      wickUpColor:    "#22c55e",
+      wickDownColor:  "#ef4444",
     });
 
-    chartRef.current = chart;
-    seriesRef.current = candlestickSeries;
+    chartRef.current  = chart;
+    seriesRef.current = series;
 
-    const handleResize = () => {
+    const onResize = () => {
       if (chartContainerRef.current) {
         chart.applyOptions({ width: chartContainerRef.current.clientWidth });
       }
     };
-
-    window.addEventListener("resize", handleResize);
+    window.addEventListener("resize", onResize);
 
     return () => {
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("resize", onResize);
       chart.remove();
-      chartRef.current = null;
+      chartRef.current  = null;
       seriesRef.current = null;
     };
   }, [loading, error]);
 
-  // Update chart data when trades or timeframe changes
+  // Update chart data when trades or timeframe change
   useEffect(() => {
     if (!seriesRef.current || allTrades.length === 0) return;
 
-    const candles = tradesToCandles(allTrades, timeframe);
-    const filled = fillCandles(candles, timeframe);
+    const priceCandles = tradesToCandles(allTrades, timeframe);
+    const filled       = fillCandles(priceCandles, timeframe);
+    const mcapCandles  = toMcapCandles(filled);
 
-    seriesRef.current.setData(filled);
-
-    if (filled.length > 0 && chartRef.current) {
+    seriesRef.current.setData(mcapCandles);
+    if (mcapCandles.length > 0 && chartRef.current) {
       chartRef.current.timeScale().fitContent();
     }
   }, [allTrades, timeframe]);
@@ -170,18 +189,10 @@ export function ChartTab({ tokenAddress }: ChartTabProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex gap-6">
-          <div>
-            <div className="text-xs text-muted-foreground font-mono">PRICE</div>
-            <div className="text-2xl font-mono font-bold text-accent">
-              {formatPrice(lastPrice)}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs text-muted-foreground font-mono">MCAP</div>
-            <div className="text-2xl font-mono font-bold">
-              {formatUSDT(marketCap, true)}
-            </div>
+        <div>
+          <div className="text-xs text-muted-foreground font-mono">MARKET CAP</div>
+          <div className="text-2xl font-mono font-bold text-accent">
+            {formatUSDT(marketCap, true)}
           </div>
         </div>
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { fetchTrades, type TendraTrade } from "@/lib/tendra";
 import { formatUSDT, formatPrice, formatTokens, formatTime } from "@/lib/format";
 import { explorerAddress, explorerTx, shortAddr } from "@/lib/rpc";
@@ -12,30 +12,55 @@ export function TradesTab({ tokenAddress }: TradesTabProps) {
   const [trades, setTrades] = useState<TendraTrade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Keep ref so the poll closure sees the latest state without re-registering
+  const tradesRef = useRef<TendraTrade[]>([]);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await fetchTrades(tokenAddress, { limit: 50 });
-        setTrades(data.sort((a, b) => b.ts - a.ts));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load trades");
-      } finally {
-        setLoading(false);
-      }
-    };
+    tradesRef.current = [];
+    setTrades([]);
+    setLoading(true);
+    setError(null);
 
-    load();
-    const interval = setInterval(load, 5_000);
-    return () => clearInterval(interval);
+    // Initial load — show loading spinner
+    fetchTrades(tokenAddress, {})
+      .then((data) => {
+        const sorted = data.sort((a, b) => b.ts - a.ts);
+        tradesRef.current = sorted;
+        setTrades(sorted);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load trades"))
+      .finally(() => setLoading(false));
+
+    // Silent poll — only prepend genuinely new trades, never re-render loading state
+    const id = setInterval(async () => {
+      try {
+        const data = await fetchTrades(tokenAddress, {});
+        if (data.length === 0) return;
+
+        const current = tradesRef.current;
+        const latestTs = current.length > 0 ? current[0].ts : 0;
+        const existingHashes = new Set(current.map((t) => t.txHash));
+
+        const newTrades = data.filter(
+          (t) => t.ts > latestTs && !existingHashes.has(t.txHash)
+        );
+        if (newTrades.length === 0) return;
+
+        const merged = [...newTrades, ...current].sort((a, b) => b.ts - a.ts);
+        tradesRef.current = merged;
+        setTrades(merged);
+      } catch {
+        // silent — don't surface polling errors
+      }
+    }, 5_000);
+
+    return () => clearInterval(id);
   }, [tokenAddress]);
 
   const totalTrades = trades.length;
-  const buyTrades = trades.filter((t) => t.isBuy);
-  const sellTrades = trades.filter((t) => !t.isBuy);
-  const totalBuyVol = buyTrades.reduce((s, t) => s + t.usdt, 0);
+  const buyTrades   = trades.filter((t) => t.isBuy);
+  const sellTrades  = trades.filter((t) => !t.isBuy);
+  const totalBuyVol  = buyTrades.reduce((s, t) => s + t.usdt, 0);
   const totalSellVol = sellTrades.reduce((s, t) => s + t.usdt, 0);
 
   if (loading) {
