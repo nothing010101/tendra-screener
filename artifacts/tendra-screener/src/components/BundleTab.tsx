@@ -10,7 +10,7 @@ export function BundleTab() {
         <h3 className="font-mono font-bold text-lg text-foreground">Bundle Analysis</h3>
         <p className="font-mono text-sm text-muted-foreground mt-2">Coming Soon</p>
         <p className="font-mono text-xs text-muted-foreground/60 mt-3 max-w-xs">
-          Akan menampilkan hubungan on-chain antar wallet — transfer token &amp; USDT sebagai bukti koordinasi.
+          Will show on-chain links between wallets — token &amp; USDT transfers as proof of coordination.
         </p>
       </div>
     </div>
