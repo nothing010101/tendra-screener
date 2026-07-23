@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { getLaunch, getTokenBalance, explorerAddress, shortAddr, TENDRA_CONTRACT, type LaunchInfo } from "@/lib/rpc";
+import { getLaunch, getTokenBalance, explorerAddress, shortAddr, type LaunchInfo } from "@/lib/rpc";
 import { formatUSDT, formatDate } from "@/lib/format";
-import { Activity, ExternalLink, CheckCircle2, XCircle, ShieldCheck } from "lucide-react";
+import { Activity, ExternalLink, CheckCircle2, XCircle } from "lucide-react";
 
 interface DevWalletTabProps {
   tokenAddress: string;
@@ -59,29 +59,6 @@ export function DevWalletTab({ tokenAddress }: DevWalletTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Verified launchpad contract */}
-      <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-lg p-4 flex items-start gap-3">
-        <ShieldCheck className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-mono font-bold text-cyan-400 tracking-wider">OFFICIAL TENDRA LAUNCHPAD</span>
-          </div>
-          <a
-            href={explorerAddress(TENDRA_CONTRACT)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-mono text-sm text-foreground/80 hover:text-cyan-400 transition-colors flex items-center gap-1 break-all"
-            data-testid="factory-address"
-          >
-            {TENDRA_CONTRACT}
-            <ExternalLink className="w-3 h-3 shrink-0" />
-          </a>
-          <p className="text-xs text-muted-foreground font-mono mt-1">
-            Token ini dideployment melalui kontrak factory resmi Tendra.fun
-          </p>
-        </div>
-      </div>
-
       {/* Creator info */}
       <div className="bg-card border border-border rounded-lg p-6">
         <h3 className="text-sm font-mono text-muted-foreground mb-4">CREATOR ADDRESS</h3>

@@ -1,32 +1,35 @@
 // Bundle analysis — detect coordinated early buyers on Tendra tokens
 
 import type { TendraTrade } from "./tendra";
+import { TENDRA_CONTRACT } from "./rpc";
 
-// Known relay/bridge/protocol addresses to exclude from bundle detection
+// Known relay/protocol/contract addresses to exclude from bundle detection.
+// The Tendra factory contract itself trades as part of bonding curve mechanics —
+// it should never be flagged as a bundler.
 const EXCLUDED_ADDRESSES = new Set([
   "0x0000000000000000000000000000000000000000",
   "0x000000000000000000000000000000000000dead",
-  // Add known Stable Chain bridge/relay addresses as they are discovered
+  TENDRA_CONTRACT.toLowerCase(),
 ]);
 
 export interface Bundle {
   wallets: string[];
   totalUsdt: number;
   totalTokens: number;
-  holdPct: number; // % of supply held combined
-  firstBuyAt: string;
-  lastBuyAt: string;
-  windowSec: number; // time span of coordinated buys
+  holdPct: number;       // % of supply held combined
+  firstBuyAt: number;   // Unix seconds
+  lastBuyAt: number;    // Unix seconds
+  windowSec: number;    // time span of coordinated buys
 }
 
 export interface BundleResult {
   bundles: Bundle[];
   earlyBuyers: string[];
   totalEarlyUsdt: number;
-  suppressedCount: number; // wallets excluded (bridge/relay)
+  suppressedCount: number; // wallets excluded (contract/relay)
 }
 
-const WINDOW_MS = 60_000; // 60 seconds — wallets buying within this window are suspicious
+const WINDOW_SEC = 60;     // 60 seconds — wallets buying within this window are suspicious
 const EARLY_TRADE_COUNT = 40; // look at the first N trades
 
 export function analyzeBundles(trades: TendraTrade[]): BundleResult {
@@ -34,7 +37,7 @@ export function analyzeBundles(trades: TendraTrade[]): BundleResult {
   const sorted = [...trades].sort((a, b) => a.ts - b.ts);
   const earlyTrades = sorted.slice(0, EARLY_TRADE_COUNT).filter((t) => t.isBuy);
 
-  // Only look at unique buyers
+  // Deduplicate wallets, exclude protocol addresses
   const seen = new Set<string>();
   const unique: TendraTrade[] = [];
   let suppressedCount = 0;
@@ -54,7 +57,7 @@ export function analyzeBundles(trades: TendraTrade[]): BundleResult {
   const earlyBuyers = unique.map((t) => t.trader);
   const totalEarlyUsdt = unique.reduce((s, t) => s + t.usdt, 0);
 
-  // Group by time window: wallets that bought within WINDOW_MS of each other
+  // Group by time window: wallets buying within WINDOW_SEC of each other
   const bundles: Bundle[] = [];
   const assigned = new Set<string>();
 
@@ -62,40 +65,40 @@ export function analyzeBundles(trades: TendraTrade[]): BundleResult {
     const anchor = unique[i];
     if (assigned.has(anchor.trader.toLowerCase())) continue;
 
-    const anchorTime = new Date(anchor.ts).getTime();
+    // ts is Unix seconds — compare directly (no Date conversion)
+    const anchorTs = anchor.ts;
     const group: TendraTrade[] = [anchor];
 
     for (let j = i + 1; j < unique.length; j++) {
       const other = unique[j];
       if (assigned.has(other.trader.toLowerCase())) continue;
-      const otherTime = new Date(other.ts).getTime();
-      if (Math.abs(otherTime - anchorTime) <= WINDOW_MS) {
+      if (Math.abs(other.ts - anchorTs) <= WINDOW_SEC) {
         group.push(other);
       }
     }
 
     if (group.length >= 2) {
-      // Detected a coordinated group
       group.forEach((t) => assigned.add(t.trader.toLowerCase()));
 
       const totalUsdt = group.reduce((s, t) => s + t.usdt, 0);
       const totalTokens = group.reduce((s, t) => s + t.tokens, 0);
       const holdPct = (totalTokens / 1_000_000_000) * 100;
-      const times = group.map((t) => new Date(t.ts).getTime());
+      const tsList = group.map((t) => t.ts);
+      const minTs = Math.min(...tsList);
+      const maxTs = Math.max(...tsList);
 
       bundles.push({
         wallets: group.map((t) => t.trader),
         totalUsdt,
         totalTokens,
         holdPct,
-        firstBuyAt: group.find((t) => new Date(t.ts).getTime() === Math.min(...times))!.ts,
-        lastBuyAt: group.find((t) => new Date(t.ts).getTime() === Math.max(...times))!.ts,
-        windowSec: (Math.max(...times) - Math.min(...times)) / 1000,
+        firstBuyAt: minTs,
+        lastBuyAt: maxTs,
+        windowSec: maxTs - minTs,
       });
     }
   }
 
-  // Sort bundles by total USDT descending
   bundles.sort((a, b) => b.totalUsdt - a.totalUsdt);
 
   return { bundles, earlyBuyers, totalEarlyUsdt, suppressedCount };

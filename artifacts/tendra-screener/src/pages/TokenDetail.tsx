@@ -8,8 +8,8 @@ import { DevWalletTab } from "@/components/DevWalletTab";
 import { BundleTab } from "@/components/BundleTab";
 import { fetchBoard, type BoardToken } from "@/lib/tendra";
 import { formatUSDT, formatPrice } from "@/lib/format";
-import { ArrowLeft, ExternalLink, ShieldCheck } from "lucide-react";
-import { explorerAddress, TENDRA_CONTRACT } from "@/lib/rpc";
+import { ArrowLeft, ExternalLink } from "lucide-react";
+import { explorerAddress } from "@/lib/rpc";
 
 export default function TokenDetail() {
   const { address } = useParams<{ address: string }>();
@@ -79,18 +79,8 @@ export default function TokenDetail() {
             <Avatar src={token.imageUrl} alt={token.name} fallback={token.name} size="lg" />
 
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold truncate">{token.name}</h1>
-                <a
-                  href={explorerAddress(TENDRA_CONTRACT)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={`Official Tendra Factory: ${TENDRA_CONTRACT}`}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 transition-colors shrink-0"
-                >
-                  <ShieldCheck className="w-3 h-3" />
-                  OFFICIAL
-                </a>
                 {token.graduated && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-bold bg-accent/20 text-accent border border-accent/30">
                     GRADUATED

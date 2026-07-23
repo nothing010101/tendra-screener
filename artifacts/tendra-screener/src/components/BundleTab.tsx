@@ -135,13 +135,13 @@ export function BundleTab({ tokenAddress }: BundleTabProps) {
               <div>
                 <div className="text-xs text-muted-foreground font-mono">FIRST BUY</div>
                 <div className="text-sm font-mono mt-1">
-                  {new Date(bundle.firstBuyAt).toLocaleTimeString()}
+                  {new Date(bundle.firstBuyAt * 1000).toLocaleTimeString()}
                 </div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground font-mono">LAST BUY</div>
                 <div className="text-sm font-mono mt-1">
-                  {new Date(bundle.lastBuyAt).toLocaleTimeString()}
+                  {new Date(bundle.lastBuyAt * 1000).toLocaleTimeString()}
                 </div>
               </div>
             </div>

@@ -179,20 +179,11 @@ export async function fetchTrades(ca: string, options: TradeOptions = {}): Promi
   return (raw.trades ?? []).map(parseRawTrade);
 }
 
-/** Fetch all pages of trades (for chart building) */
+/** Fetch all trades for a token in one shot (Tendra API ignores page param).
+ *  Returns sorted oldest-first for charting. */
 export async function fetchAllTrades(ca: string): Promise<TendraTrade[]> {
-  const trades: TendraTrade[] = [];
-  let page = 1;
-  const limit = 200;
-
-  while (true) {
-    const batch = await fetchTrades(ca, { limit, page });
-    trades.push(...batch);
-    if (batch.length < limit) break;
-    page++;
-    if (page > 20) break; // safety cap: 4000 trades max
-  }
-
-  // Sort oldest first for charting
+  // The API returns all trades in a single response regardless of limit/page params.
+  // Do NOT paginate — it loops indefinitely returning the same data.
+  const trades = await fetchTrades(ca, {});
   return trades.sort((a, b) => a.ts - b.ts);
 }

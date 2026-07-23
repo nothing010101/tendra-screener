@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { fetchBoard, type BoardToken } from "@/lib/tendra";
-import { fetchOnchainBatch, TENDRA_CONTRACT, explorerAddress } from "@/lib/rpc";
+import { fetchOnchainBatch } from "@/lib/rpc";
 import { formatUSDT, formatPct, timeAgo, gradPct } from "@/lib/format";
 import { Avatar } from "@/components/Avatar";
 import { Progress } from "@/components/ui/progress";
-import { TrendingUp, Activity, Clock, ShieldCheck } from "lucide-react";
+import { TrendingUp, Activity, Clock } from "lucide-react";
 
 type SortMode = "volume" | "marketcap" | "new";
 
@@ -176,17 +176,8 @@ export default function TokenList() {
                   />
 
                   <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-semibold text-sm truncate group-hover:text-accent transition-colors">
-                        {token.name}
-                      </span>
-                      <span
-                        title={`Launched via official Tendra factory ${TENDRA_CONTRACT}`}
-                        className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-mono font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shrink-0"
-                      >
-                        <ShieldCheck className="w-2.5 h-2.5" />
-                        OFFICIAL
-                      </span>
+                    <div className="font-semibold text-sm truncate group-hover:text-accent transition-colors">
+                      {token.name}
                     </div>
                     <div className="text-xs text-muted-foreground font-mono truncate">
                       {token.symbol}
