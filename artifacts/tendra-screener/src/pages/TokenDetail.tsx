@@ -15,6 +15,9 @@ export default function TokenDetail() {
   const { address } = useParams<{ address: string }>();
   const [token, setToken] = useState<BoardToken | null>(null);
   const [loading, setLoading] = useState(true);
+  // Lifted from ChartTab so header always shows live values
+  const [livePrice, setLivePrice] = useState<number>(0);
+  const [liveMcap, setLiveMcap]   = useState<number>(0);
 
   useEffect(() => {
     if (!address) return;
@@ -106,11 +109,15 @@ export default function TokenDetail() {
             <div className="flex gap-6">
               <div className="text-right">
                 <div className="text-xs text-muted-foreground font-mono">PRICE</div>
-                <div className="text-lg font-mono font-bold">{formatPrice(token.price)}</div>
+                <div className="text-lg font-mono font-bold">
+                  {formatPrice(livePrice || token.price)}
+                </div>
               </div>
               <div className="text-right">
                 <div className="text-xs text-muted-foreground font-mono">MARKET CAP</div>
-                <div className="text-lg font-mono font-bold">{formatUSDT(token.marketCap, true)}</div>
+                <div className="text-lg font-mono font-bold">
+                  {formatUSDT(liveMcap || token.marketCap, true)}
+                </div>
               </div>
             </div>
           </div>
@@ -151,7 +158,10 @@ export default function TokenDetail() {
           </TabsList>
 
           <TabsContent value="chart" className="mt-6">
-            <ChartTab tokenAddress={address} />
+            <ChartTab
+              tokenAddress={address}
+              onPriceUpdate={(price, mcap) => { setLivePrice(price); setLiveMcap(mcap); }}
+            />
           </TabsContent>
 
           <TabsContent value="trades" className="mt-6">

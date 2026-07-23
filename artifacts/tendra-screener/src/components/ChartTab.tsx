@@ -75,9 +75,10 @@ function calcWalletStats(
 
 interface ChartTabProps {
   tokenAddress: string;
+  onPriceUpdate?: (price: number, mcap: number) => void;
 }
 
-export function ChartTab({ tokenAddress }: ChartTabProps) {
+export function ChartTab({ tokenAddress, onPriceUpdate }: ChartTabProps) {
   const [timeframe, setTimeframe]     = useState<TimeFrame>("5m");
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState<string | null>(null);
@@ -113,6 +114,7 @@ export function ChartTab({ tokenAddress }: ChartTabProps) {
           const last = trades[trades.length - 1];
           setLatestPrice(last.price);
           setMarketCap(last.price * SUPPLY);
+          onPriceUpdate?.(last.price, last.price * SUPPLY);
         }
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load"))
@@ -137,6 +139,7 @@ export function ChartTab({ tokenAddress }: ChartTabProps) {
         const last = newTrades[newTrades.length - 1];
         setLatestPrice(last.price);
         setMarketCap(last.price * SUPPLY);
+        onPriceUpdate?.(last.price, last.price * SUPPLY);
       } catch { /* silent */ }
     };
 

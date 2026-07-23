@@ -137,6 +137,80 @@ export async function getTokenBalancePct(tokenAddress: string, walletAddress: st
   return (balance / SUPPLY) * 100;
 }
 
+const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
+export interface TransferEvidence {
+  txHash: string;
+  from: string;
+  to: string;
+  /** Raw token amount ÷ 1e18 */
+  amount: number;
+  blockNumber: number;
+}
+
+/**
+ * Fetch ERC-20 Transfer events on `tokenAddress` where both `from` AND `to`
+ * are in the supplied `wallets` set (i.e. intra-group transfers).
+ * `fromTs` / `toTs` are Unix seconds — used to estimate the block range.
+ */
+export async function fetchIntraGroupTransfers(
+  tokenAddress: string,
+  wallets: string[],
+  fromTs: number,
+  toTs: number,
+): Promise<TransferEvidence[]> {
+  const provider = getProvider();
+  const walletSet = new Set(wallets.map((w) => w.toLowerCase()));
+
+  // Estimate block range ─────────────────────────────────────────────────────
+  const latest = await provider.getBlock("latest");
+  if (!latest) return [];
+
+  const nowTs      = latest.timestamp;          // seconds
+  const nowBlock   = latest.number;
+  const secPerBlock = 2;                         // Stable Chain ~2 s/block
+
+  const fromBlock = Math.max(0, nowBlock - Math.ceil((nowTs - fromTs) / secPerBlock) - 300);
+  const toBlock   = Math.max(fromBlock, nowBlock - Math.ceil((nowTs - toTs)   / secPerBlock) + 300);
+
+  // Build topic filters for each wallet (pad to 32 bytes)
+  const pad = (addr: string) => "0x" + addr.replace(/^0x/, "").toLowerCase().padStart(64, "0");
+  const walletTopics = wallets.map(pad);
+
+  // Query: Transfer(from ∈ wallets, to = any) then filter `to` in wallets
+  // We run two queries in parallel (from-side and to-side) and deduplicate by txHash
+  const [logsFrom, logsTo] = await Promise.all([
+    provider.getLogs({
+      address: tokenAddress,
+      fromBlock,
+      toBlock,
+      topics: [TRANSFER_TOPIC, walletTopics],
+    }).catch(() => []),
+    provider.getLogs({
+      address: tokenAddress,
+      fromBlock,
+      toBlock,
+      topics: [TRANSFER_TOPIC, null, walletTopics],
+    }).catch(() => []),
+  ]);
+
+  const seen = new Set<string>();
+  const results: TransferEvidence[] = [];
+
+  for (const log of [...logsFrom, ...logsTo]) {
+    if (seen.has(log.transactionHash)) continue;
+    const from = ("0x" + log.topics[1].slice(26)).toLowerCase();
+    const to   = ("0x" + log.topics[2].slice(26)).toLowerCase();
+    // Only keep intra-group transfers
+    if (!walletSet.has(from) || !walletSet.has(to)) continue;
+    seen.add(log.transactionHash);
+    const amount = Number(BigInt(log.data)) / 1e18;
+    results.push({ txHash: log.transactionHash, from, to, amount, blockNumber: log.blockNumber });
+  }
+
+  return results.sort((a, b) => a.blockNumber - b.blockNumber);
+}
+
 export function explorerTx(hash: string): string {
   return `${STABLESCAN}/tx/${hash}`;
 }
