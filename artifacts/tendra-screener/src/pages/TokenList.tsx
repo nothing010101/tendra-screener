@@ -1,11 +1,35 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "wouter";
 import { fetchBoard, type BoardToken } from "@/lib/tendra";
-import { fetchOnchainBatch } from "@/lib/rpc";
+import { fetchOnchainBatch, getTokenCount, getTokenAt, type LaunchInfo } from "@/lib/rpc";
 import { formatUSDT, formatPct, timeAgo, gradPct } from "@/lib/format";
 import { Avatar } from "@/components/Avatar";
 import { Progress } from "@/components/ui/progress";
 import { TrendingUp, Activity, Clock, Sparkles } from "lucide-react";
+
+/** Convert on-chain LaunchInfo → BoardToken (for tokens not yet in board API) */
+function launchToToken(info: LaunchInfo): BoardToken {
+  return {
+    address: info.token,
+    name: info.name,
+    symbol: info.symbol,
+    metadataURI: "",
+    imageUrl: null,
+    description: null,
+    website: null,
+    twitter: null,
+    vol24h: 0,
+    trades: 0,
+    traders: 0,
+    holders: 0,
+    change24h: null,
+    lastTradeAt: null,
+    gradMcap: null,
+    graduated: info.graduated,
+    marketCap: info.marketCap,
+    price: info.price,
+  };
+}
 
 type SortMode = "volume" | "marketcap" | "new";
 
@@ -46,6 +70,8 @@ export default function TokenList() {
   const initializedRef                = useRef(false);
   // pending new token count (for banner)
   const [newCount, setNewCount]       = useState(0);
+  // last known on-chain token count (to detect brand-new launches)
+  const tokenCountRef                 = useRef<number>(-1);
 
   const mergeEnriched = useCallback((raw: BoardToken[]): BoardToken[] => {
     return raw.map((t) => {
@@ -132,6 +158,80 @@ export default function TokenList() {
     const id = setInterval(() => doLoad(sort, true), 5_000);
     return () => clearInterval(id);
   }, [sort, doLoad]);
+
+  // ── Contract-level polling: catch tokens not yet in board API ─────────────
+  // Board API only lists tokens that have traded. We also poll tokenCount()
+  // directly so newly launched tokens (0 trades) appear immediately.
+  // On first run we also do a catch-up for any existing no-trade tokens.
+  useEffect(() => {
+    const addMissingTokens = async (infos: (LaunchInfo | null)[], markAsNew: boolean) => {
+      const now = Date.now();
+      const toAdd: BoardToken[] = [];
+
+      for (const info of infos) {
+        if (!info) continue;
+        const addr = info.token.toLowerCase();
+        if (knownAddressesRef.current.has(addr)) continue;
+
+        knownAddressesRef.current.add(addr);
+        if (markAsNew) newAddressesRef.current.set(addr, now);
+
+        enrichedRef.current.set(addr, {
+          name: info.name, symbol: info.symbol,
+          marketCap: info.marketCap, price: info.price,
+        });
+        toAdd.push(launchToToken(info));
+      }
+
+      if (toAdd.length === 0) return;
+
+      setTokens((prev) => {
+        const merged = [
+          ...toAdd.filter((t) => !prev.some((p) => p.address.toLowerCase() === t.address.toLowerCase())),
+          ...prev,
+        ];
+        return applySort(merged, sortRef.current, apiOrderRef.current);
+      });
+      if (markAsNew) setNewCount((c) => c + toAdd.length);
+    };
+
+    const pollContract = async () => {
+      try {
+        const count = await getTokenCount();
+
+        if (tokenCountRef.current === -1) {
+          // ── First run: catch-up pass ──────────────────────────────────────
+          // Check last 20 contract tokens for any missing from board API.
+          // Waits briefly to let initial board load populate knownAddressesRef.
+          tokenCountRef.current = count;
+          await new Promise((r) => setTimeout(r, 2_000));
+
+          const catchUpIndices: number[] = [];
+          for (let i = Math.max(0, count - 20); i < count; i++) catchUpIndices.push(i);
+
+          const infos = await Promise.all(catchUpIndices.map((i) => getTokenAt(i).catch(() => null)));
+          // Don't mark catch-up tokens as "new" — they existed before
+          await addMissingTokens(infos, false);
+          return;
+        }
+
+        if (count <= tokenCountRef.current) return;
+
+        // ── Ongoing: truly new launches ───────────────────────────────────
+        const newIndices: number[] = [];
+        for (let i = tokenCountRef.current; i < count; i++) newIndices.push(i);
+        tokenCountRef.current = count;
+
+        const infos = await Promise.all(newIndices.map((i) => getTokenAt(i).catch(() => null)));
+        await addMissingTokens(infos, true);
+
+      } catch { /* silent */ }
+    };
+
+    pollContract();
+    const id = setInterval(pollContract, 5_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Expire NEW badges after TTL
   useEffect(() => {
