@@ -1,0 +1,15 @@
+{
+  "rewrites": [
+    {
+      "source": "/tendra-proxy/(.*)",
+      "destination": "https://tendra.fun/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "buildCommand": "cd ../.. && pnpm --filter @workspace/tendra-screener run build",
+  "outputDirectory": "dist/public",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile"
+}

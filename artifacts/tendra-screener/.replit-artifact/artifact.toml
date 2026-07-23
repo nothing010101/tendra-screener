@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/tendra-screener/"
+title = "TendraScreener"
+version = "1.0.0"
+id = "artifacts/tendra-screener"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/tendra-screener/" ]
+localPort = 20631
+
+[services.development]
+run = "pnpm --filter @workspace/tendra-screener run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/tendra-screener", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/tendra-screener/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20631"
+BASE_PATH = "/tendra-screener/"
