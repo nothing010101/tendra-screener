@@ -1,48 +1,101 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "wouter";
 import { fetchBoard, type BoardToken } from "@/lib/tendra";
 import { fetchOnchainBatch } from "@/lib/rpc";
 import { formatUSDT, formatPct, timeAgo, gradPct } from "@/lib/format";
 import { Avatar } from "@/components/Avatar";
 import { Progress } from "@/components/ui/progress";
-import { TrendingUp, Activity, Clock } from "lucide-react";
+import { TrendingUp, Activity, Clock, Sparkles } from "lucide-react";
 
 type SortMode = "volume" | "marketcap" | "new";
 
-function applySort(tokens: BoardToken[], sortBy: SortMode): BoardToken[] {
-  return [...tokens].sort((a, b) => {
-    if (sortBy === "volume")    return b.vol24h - a.vol24h;
-    if (sortBy === "marketcap") return b.marketCap - a.marketCap;
-    // "new" — most recently traded first (proxy for newest token)
-    return (b.lastTradeAt ?? 0) - (a.lastTradeAt ?? 0);
-  });
+// NEW badge TTL — show badge for 3 minutes after a token first appears
+const NEW_BADGE_TTL_MS = 3 * 60 * 1000;
+
+function applySort(tokens: BoardToken[], sortBy: SortMode, apiOrder: string[]): BoardToken[] {
+  if (sortBy === "new") {
+    // Trust the API's ordering for "new" — it knows creation time
+    const orderMap = new Map(apiOrder.map((a, i) => [a.toLowerCase(), i]));
+    return [...tokens].sort(
+      (a, b) => (orderMap.get(a.address.toLowerCase()) ?? 999) - (orderMap.get(b.address.toLowerCase()) ?? 999)
+    );
+  }
+  if (sortBy === "volume")    return [...tokens].sort((a, b) => b.vol24h - a.vol24h);
+  if (sortBy === "marketcap") return [...tokens].sort((a, b) => b.marketCap - a.marketCap);
+  return tokens;
 }
 
 export default function TokenList() {
-  const [tokens, setTokens] = useState<BoardToken[]>([]);
-  const [sort, setSort] = useState<SortMode>("volume");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  // Track which addresses we've already enriched to avoid redundant RPC calls
-  const enrichedRef = useRef<Map<string, { name: string; symbol: string; marketCap: number; price: number }>>(new Map());
-  // Keep current sort accessible inside async callbacks without stale closure
-  const sortRef = useRef<SortMode>("volume");
+  const [tokens, setTokens]           = useState<BoardToken[]>([]);
+  const [sort, setSort]               = useState<SortMode>("volume");
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState<string | null>(null);
+  // address → timestamp when it first appeared (for NEW badge)
+  const newAddressesRef               = useRef<Map<string, number>>(new Map());
+  // all addresses we've seen so far across polls
+  const knownAddressesRef             = useRef<Set<string>>(new Set());
+  // enriched cache: address → {name, symbol, marketCap, price}
+  const enrichedRef                   = useRef<Map<string, { name: string; symbol: string; marketCap: number; price: number }>>(new Map());
+  // last time we re-enriched ALL tokens (for price freshness)
+  const lastEnrichAllRef              = useRef<number>(0);
+  // keep sort in a ref so async callbacks never capture a stale value
+  const sortRef                       = useRef<SortMode>("volume");
+  // api ordering of addresses (used for "new" sort)
+  const apiOrderRef                   = useRef<string[]>([]);
+  // whether first load has completed
+  const initializedRef                = useRef(false);
+  // pending new token count (for banner)
+  const [newCount, setNewCount]       = useState(0);
 
-  const loadTokens = async (sortBy: SortMode) => {
+  const mergeEnriched = useCallback((raw: BoardToken[]): BoardToken[] => {
+    return raw.map((t) => {
+      const e = enrichedRef.current.get(t.address.toLowerCase());
+      return e ? { ...t, name: e.name || t.name, symbol: e.symbol || t.symbol, marketCap: e.marketCap, price: e.price } : t;
+    });
+  }, []);
+
+  const doLoad = useCallback(async (sortBy: SortMode, silent: boolean) => {
     sortRef.current = sortBy;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
+
       const data = await fetchBoard(sortBy);
+      apiOrderRef.current = data.map((t) => t.address);
 
-      // Immediately show board data sorted correctly
-      setTokens(applySort(data, sortBy));
+      // Detect genuinely new tokens (not seen before)
+      const now = Date.now();
+      let freshCount = 0;
+      for (const t of data) {
+        const addr = t.address.toLowerCase();
+        if (!knownAddressesRef.current.has(addr)) {
+          knownAddressesRef.current.add(addr);
+          if (initializedRef.current) {
+            // First poll after init — mark as new
+            newAddressesRef.current.set(addr, now);
+            freshCount++;
+          }
+        }
+      }
+      if (freshCount > 0) setNewCount((c) => c + freshCount);
+
+      // Show board data immediately (with cached enrichment applied)
+      const merged = mergeEnriched(data);
+      setTokens(applySort(merged, sortBy, apiOrderRef.current));
       setError(null);
-      setLoading(false);
+      if (!silent) setLoading(false);
 
-      // Enrich with on-chain data for tokens we haven't fetched yet
-      const unknown = data.filter((t) => !enrichedRef.current.has(t.address.toLowerCase()));
-      if (unknown.length > 0) {
-        const onchain = await fetchOnchainBatch(unknown.map((t) => t.address));
+      // Enrich new tokens (never enriched before)
+      const unenriched = data.filter((t) => !enrichedRef.current.has(t.address.toLowerCase()));
+      // Re-enrich all every 30s for fresh prices
+      const shouldReenrichAll = now - lastEnrichAllRef.current > 30_000;
+
+      const toEnrich = shouldReenrichAll
+        ? data
+        : unenriched;
+
+      if (toEnrich.length > 0) {
+        if (shouldReenrichAll) lastEnrichAllRef.current = now;
+        const onchain = await fetchOnchainBatch(toEnrich.map((t) => t.address));
         onchain.forEach((info, addr) => {
           enrichedRef.current.set(addr, {
             name: info.name,
@@ -53,27 +106,51 @@ export default function TokenList() {
         });
       }
 
-      // Re-merge enriched data and re-sort with current sort mode
+      // Re-apply enrichment and re-sort
       setTokens((prev) =>
-        applySort(
-          prev.map((t) => {
-            const e = enrichedRef.current.get(t.address.toLowerCase());
-            return e ? { ...t, name: e.name, symbol: e.symbol, marketCap: e.marketCap, price: e.price } : t;
-          }),
-          sortRef.current
-        )
+        applySort(mergeEnriched(prev), sortRef.current, apiOrderRef.current)
       );
+
+      if (!initializedRef.current) {
+        initializedRef.current = true;
+        // Mark all addresses as known (not "new") after first load
+        for (const t of data) knownAddressesRef.current.add(t.address.toLowerCase());
+      }
+
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load tokens");
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, [mergeEnriched]);
 
   useEffect(() => {
-    loadTokens(sort);
-    const interval = setInterval(() => loadTokens(sort), 10_000);
-    return () => clearInterval(interval);
-  }, [sort]);
+    sortRef.current = sort;
+    initializedRef.current = false;
+    setNewCount(0);
+    doLoad(sort, false);
+    // Poll every 5s — silent after first load
+    const id = setInterval(() => doLoad(sort, true), 5_000);
+    return () => clearInterval(id);
+  }, [sort, doLoad]);
+
+  // Expire NEW badges after TTL
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = Date.now();
+      let changed = false;
+      for (const [addr, ts] of newAddressesRef.current) {
+        if (now - ts > NEW_BADGE_TTL_MS) {
+          newAddressesRef.current.delete(addr);
+          changed = true;
+        }
+      }
+      if (changed) setNewCount(newAddressesRef.current.size);
+    }, 10_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const isNew = (address: string): boolean =>
+    newAddressesRef.current.has(address.toLowerCase());
 
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -91,44 +168,39 @@ export default function TokenList() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setSort("volume")}
-              data-testid="sort-volume"
-              className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
-                sort === "volume"
-                  ? "bg-accent text-accent-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-              }`}
-            >
-              Volume
-            </button>
-            <button
-              onClick={() => setSort("marketcap")}
-              data-testid="sort-marketcap"
-              className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
-                sort === "marketcap"
-                  ? "bg-accent text-accent-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-              }`}
-            >
-              Market Cap
-            </button>
-            <button
-              onClick={() => setSort("new")}
-              data-testid="sort-new"
-              className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
-                sort === "new"
-                  ? "bg-accent text-accent-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-              }`}
-            >
-              New
-            </button>
+            {(["volume", "marketcap", "new"] as SortMode[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => setSort(s)}
+                data-testid={`sort-${s}`}
+                className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                  sort === s
+                    ? "bg-accent text-accent-foreground"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                }`}
+              >
+                {s === "volume" ? "Volume" : s === "marketcap" ? "Market Cap" : "New"}
+              </button>
+            ))}
           </div>
         </div>
       </header>
 
+      {/* New token banner */}
+      {newCount > 0 && (
+        <div className="sticky top-[57px] z-40 flex items-center justify-center py-1.5 bg-accent/10 border-b border-accent/20">
+          <button
+            onClick={() => { setSort("new"); setNewCount(0); }}
+            className="flex items-center gap-2 text-xs font-mono text-accent font-medium hover:underline"
+          >
+            <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+            {newCount} new token{newCount > 1 ? "s" : ""} detected — click to view
+          </button>
+        </div>
+      )}
+
       <main className="container mx-auto px-4 py-6">
+        {/* Initial loading */}
         {loading && tokens.length === 0 && (
           <div className="flex items-center justify-center py-20">
             <div className="flex items-center gap-3 text-muted-foreground">
@@ -154,36 +226,43 @@ export default function TokenList() {
           <div className="space-y-1">
             {/* Table header */}
             <div className="grid grid-cols-[auto_1fr_120px_100px_80px_100px_100px_60px] gap-4 px-4 py-2 text-xs font-mono text-muted-foreground border-b border-border">
-              <div></div>
+              <div />
               <div>TOKEN</div>
               <div className="text-right">MCAP / GRAD</div>
               <div className="text-right">VOL 24H</div>
               <div className="text-right">TRADES</div>
               <div className="text-right">CHANGE</div>
               <div className="text-right">LAST TRADE</div>
-              <div></div>
+              <div />
             </div>
 
-            {/* Token rows */}
             {tokens.map((token) => {
-              const progress = gradPct(token.marketCap);
+              const progress  = gradPct(token.marketCap);
+              const tokenIsNew = isNew(token.address);
               return (
                 <Link
                   key={token.address}
                   href={`/token/${token.address}`}
                   data-testid={`token-row-${token.address}`}
-                  className="grid grid-cols-[auto_1fr_120px_100px_80px_100px_100px_60px] gap-4 px-4 py-3 items-center bg-card hover:bg-card/60 border border-border rounded transition-colors cursor-pointer group"
+                  className={`grid grid-cols-[auto_1fr_120px_100px_80px_100px_100px_60px] gap-4 px-4 py-3 items-center border rounded transition-colors cursor-pointer group ${
+                    tokenIsNew
+                      ? "bg-accent/5 border-accent/30 hover:bg-accent/10"
+                      : "bg-card hover:bg-card/60 border-border"
+                  }`}
                 >
-                  <Avatar
-                    src={token.imageUrl}
-                    alt={token.name}
-                    fallback={token.name}
-                    size="md"
-                  />
+                  <Avatar src={token.imageUrl} alt={token.name} fallback={token.name} size="md" />
 
                   <div className="min-w-0">
-                    <div className="font-semibold text-sm truncate group-hover:text-accent transition-colors">
-                      {token.name}
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-sm truncate group-hover:text-accent transition-colors">
+                        {token.name || token.address.slice(0, 8) + "…"}
+                      </span>
+                      {tokenIsNew && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-accent/20 text-accent border border-accent/30 shrink-0 animate-pulse">
+                          <Sparkles className="w-2 h-2" />
+                          NEW
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-muted-foreground font-mono truncate">
                       {token.symbol}
@@ -205,11 +284,9 @@ export default function TokenList() {
                     {token.trades}
                   </div>
 
-                  <div
-                    className={`text-right font-mono text-sm font-semibold ${
-                      (token.change24h ?? 0) >= 0 ? "text-green-500" : "text-red-500"
-                    }`}
-                  >
+                  <div className={`text-right font-mono text-sm font-semibold ${
+                    (token.change24h ?? 0) >= 0 ? "text-green-500" : "text-red-500"
+                  }`}>
                     {formatPct(token.change24h)}
                   </div>
 
