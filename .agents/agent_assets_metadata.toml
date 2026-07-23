@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "0yXD4saKwopzoDo1V1grb"
+uri = "file://tendra-screener-logo.png"
+type = "image"
+title = "TendraScreener Logo 500×500"
